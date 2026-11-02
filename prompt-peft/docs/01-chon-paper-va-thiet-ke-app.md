@@ -11,7 +11,7 @@
 | Tên đầy đủ | *Prompt Tuning Strikes Back: Customizing Foundation Models with Low-Rank Prompt Adaptation* | *Fine-Tuning and Prompt Optimization: Two Great Steps that Work Better Together* |
 | Tác giả | Jain, Chaudhuri, Reps, Jermaine | Soylu, Potts, Khattab (Stanford, nhóm DSPy) |
 | Hội nghị | **NeurIPS 2024** | **EMNLP 2024** (main, 2024.emnlp-main.597) |
-| File | `paper-advance/lopa-neurips2024.pdf` | *chưa có trong repo* → tải từ https://aclanthology.org/2024.emnlp-main.597 |
+| Tài liệu | [`papers/01-lopa/`](../papers/01-lopa/) | [`papers/02-bettertogether/`](../papers/02-bettertogether/) (PDF chưa có trong repo → tải từ https://aclanthology.org/2024.emnlp-main.597) |
 | Loại prompt | **Soft prompt** (vector do máy học) | **Hard prompt** (prompt chữ + ví dụ few-shot, do máy tối ưu) |
 | Loại PEFT | Prompt tuning nâng cấp, so với LoRA | **LoRA** fine-tune trọng số |
 | Câu hỏi chính | Prompt tuning có thể mạnh ngang LoRA mà server không phải lưu adapter không? | Nên tối ưu prompt **hay** fine-tune trọng số? → Làm **cả hai**, xen kẽ |
@@ -207,21 +207,8 @@ Qwen hỗ trợ tiếng Việt; Llama-3 gần với setup của paper hơn. Ch�
                                                    backbone 7–8B + LoRA adapter
 ```
 
-### Cấu trúc thư mục dự kiến
-```
-prompt-peft/app/
-  config.yaml
-  data/                    # script tải và chia dữ liệu
-  lopa/       lopa.py, train.py, evaluate.py
-  bettertogether/
-              programs.py   # DSPy program cho GSM8K, HotPotQA
-              optimize.py   # chỉ prompt / chỉ LoRA / prompt→LoRA→prompt
-              evaluate.py
-  artifacts/  # checkpoint LoPA, LoRA adapter, program đã compile (.json)
-  server/main.py
-  client/
-  notebooks/  part1_lopa.ipynb, part2_bettertogether.ipynb
-```
+### Cấu trúc thư mục
+Xem [`app/README.md`](../app/README.md).
 
 ---
 

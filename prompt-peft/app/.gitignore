@@ -1,0 +1,14 @@
+# Dữ liệu và artifact lớn không commit
+data/raw/
+data/cache/
+artifacts/**
+!artifacts/.gitkeep
+!artifacts/results/
+!artifacts/results/*.csv
+!artifacts/dspy/
+!artifacts/dspy/*.json
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
