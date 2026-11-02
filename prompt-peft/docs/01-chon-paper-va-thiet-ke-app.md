@@ -11,7 +11,7 @@
 | Tên đầy đủ | *Prompt Tuning Strikes Back: Customizing Foundation Models with Low-Rank Prompt Adaptation* | *Fine-Tuning and Prompt Optimization: Two Great Steps that Work Better Together* |
 | Tác giả | Jain, Chaudhuri, Reps, Jermaine | Soylu, Potts, Khattab (Stanford, nhóm DSPy) |
 | Hội nghị | **NeurIPS 2024** | **EMNLP 2024** (main, 2024.emnlp-main.597) |
-| Tài liệu | [`papers/01-lopa/`](../papers/01-lopa/) | [`papers/02-bettertogether/`](../papers/02-bettertogether/) (PDF chưa có trong repo → tải từ https://aclanthology.org/2024.emnlp-main.597) |
+| Tài liệu | [`papers/01-lopa/`](../papers/01-lopa/) | [`papers/02-bettertogether/`](../papers/02-bettertogether/) |
 | Loại prompt | **Soft prompt** (vector do máy học) | **Hard prompt** (prompt chữ + ví dụ few-shot, do máy tối ưu) |
 | Loại PEFT | Prompt tuning nâng cấp, so với LoRA | **LoRA** fine-tune trọng số |
 | Câu hỏi chính | Prompt tuning có thể mạnh ngang LoRA mà server không phải lưu adapter không? | Nên tối ưu prompt **hay** fine-tune trọng số? → Làm **cả hai**, xen kẽ |
@@ -111,7 +111,7 @@ def exact_match(example, pred, trace=None):
 **5. Optimizer + compile** — tự tìm prompt tốt nhất:
 ```python
 opt = dspy.BootstrapFewShotWithRandomSearch(metric=exact_match,
-                                            max_bootstrapped_demos=4, num_candidate_programs=8)
+                                            max_bootstrapped_demos=3, num_candidate_programs=6)  # như BetterTogether
 compiled = opt.compile(MultiHopQA(), trainset=train)
 compiled.save("hotpot_prompt_opt.json")        # lưu lại, khi demo chỉ cần load
 ```
@@ -152,7 +152,7 @@ Lưu ý: API của DSPy thay đổi khá nhanh giữa các phiên bản (vd. `ds
 
 **Kết quả trong paper**: HotPotQA, GSM8K, Iris với Mistral-7B, Llama-2-7B, Llama-3-8B; kết hợp tốt nhất ở 7/9 cặp dataset × model, hơn "chỉ fine-tune" tới 60% và hơn "chỉ tối ưu prompt" tới 6% (trung bình theo model và task).
 
-*Cần đọc kỹ trong paper trước khi làm: thứ tự và số vòng chính xác, cấu hình LoRA (rank, lr, số epoch), kích thước train/dev, retriever dùng cho HotPotQA.*
+Cấu hình trong paper: tối ưu prompt bằng BFRS (6 candidate, tối đa 3 ví dụ mỗi module); LoRA trên layer query và key, rank 32, alpha 64, 5 epoch, lr 1e-5; HotPotQA dùng ColBERTv2 trên Wikipedia 5 triệu đoạn. Chi tiết: [`papers/02-bettertogether/`](../papers/02-bettertogether/).
 
 ---
 

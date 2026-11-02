@@ -5,57 +5,74 @@
 | Tên đầy đủ | *Fine-Tuning and Prompt Optimization: Two Great Steps that Work Better Together* |
 | Tác giả | Dilara Soylu, Christopher Potts, Omar Khattab (Stanford) |
 | Hội nghị | **EMNLP 2024** (main conference), trang 10696–10710 |
-| Link | [ACL Anthology 2024.emnlp-main.597](https://aclanthology.org/2024.emnlp-main.597) · [PDF](https://aclanthology.org/2024.emnlp-main.597.pdf) · [arXiv 2407.10930](https://arxiv.org/abs/2407.10930) |
-| Code | Optimizer `BetterTogether` nằm trong thư viện [DSPy](https://github.com/stanfordnlp/dspy) |
+| Link | [ACL Anthology 2024.emnlp-main.597](https://aclanthology.org/2024.emnlp-main.597) · [arXiv 2407.10930](https://arxiv.org/abs/2407.10930) · PDF trong repo: [`bettertogether-emnlp2024.pdf`](bettertogether-emnlp2024.pdf) |
+| Code | Optimizer `BetterTogether` trong thư viện [DSPy](https://github.com/stanfordnlp/dspy) (http://dspy.ai) |
 | Cần đọc trước | [`../03-dspy/`](../03-dspy/) |
-| Dịch chi tiết | [`dich-chi-tiet.md`](dich-chi-tiet.md) (*chờ PDF*) |
-
-> ⚠️ **PDF chưa có trong repo.** Phần dưới được tổng hợp từ abstract và trang ACL Anthology. Các chỗ đánh dấu *(cần kiểm tra)* phải đối chiếu lại với bản PDF trước khi đưa vào slide.
-> Việc cần làm: tải PDF từ link trên, lưu thành `bettertogether-emnlp2024.pdf` trong thư mục này.
+| Dịch chi tiết | [`dich-chi-tiet.md`](dich-chi-tiet.md) |
 
 ---
 
 ## Tóm tắt 1 trang
 
-**Bối cảnh.** Hệ thống NLP hiện đại thường là **pipeline nhiều module**, mỗi module gọi LLM một lần. Ví dụ RAG hỏi đáp nhiều bước: sinh truy vấn → tìm tài liệu → sinh truy vấn tiếp → tìm → trả lời. Tối ưu cả pipeline rất khó vì:
-- chỉ có **nhãn cho đáp án cuối**, không có nhãn cho bước trung gian (truy vấn tìm kiếm "đúng" là gì?);
-- **không lan truyền gradient** được qua cả pipeline (có bước tìm kiếm, có sinh văn bản rời rạc).
+**Bối cảnh.** Hệ thống NLP hiện đại là **LM program**: pipeline nhiều module, mỗi module `M_i` có một **prompt π_i** và dùng một LM với **trọng số θ_i**. Ví dụ HotPotQA: sinh truy vấn → tìm → sinh truy vấn → tìm → trả lời.
 
-**Hai hướng tối ưu đã có (trong DSPy):**
-1. **Tối ưu prompt**: tự tìm ví dụ few-shot hoặc câu lệnh cho từng module (vd. `BootstrapFewShotWithRandomSearch`).
-2. **Fine-tune trọng số**: dùng các trace "đúng" do chính chương trình sinh ra làm dữ liệu train LM (vd. `BootstrapFinetune`).
+**Bài toán.** Tìm Π (mọi prompt) và Θ (mọi trọng số) để tối đa metric µ trên tập train nhỏ:
+```
+arg max_{Θ,Π} (1/|X|) Σ µ(Φ⟨Θ,Π⟩(x), m)
+```
+Không giải chính xác được: Φ không khả vi, **không có nhãn cho bước trung gian**, tập train nhỏ, số lần gọi LM có hạn.
 
-**Ý tưởng.** Hai bước này **bổ trợ nhau**: cho **chính LM tự dạy mình** bằng cách **xen kẽ** tối ưu prompt và fine-tune trọng số.
-- Prompt tốt → nhiều trace đúng hơn → dữ liệu fine-tune tốt hơn.
-- Model đã fine-tune → tối ưu prompt lại trên model mới để tận dụng hết.
-- Thứ tự gợi ý: **tối ưu prompt → fine-tune trọng số (trên trace của prompt đã tối ưu) → tối ưu prompt lần nữa** *(cần kiểm tra các biến thể thứ tự khác được thử trong paper)*.
+**Hai công cụ có sẵn trong DSPy**, cùng dựa trên **bootstrap**: chạy chương trình và giữ lại **trace** (input/output từng module) của những lần cho **đáp án cuối đúng**.
+- **BootstrapFewShotRS (BFRS)**, tối ưu Π: chọn vài trace làm **ví dụ few-shot** cho mỗi module, thử nhiều tổ hợp, chọn tổ hợp tốt nhất trên tập validation.
+- **BootstrapFinetune (BFT)**, tối ưu Θ: gộp **mọi** trace đúng (với prompt thay bằng bản vanilla) thành dữ liệu, **fine-tune LoRA** cho LM.
+
+**Ý tưởng — BetterTogether.** Cho **cùng một LM tự dạy chính nó** bằng cách xen kẽ:
+```
+Π′ ← tối ưu prompt                         (prompt tốt → nhiều trace đúng hơn)
+Θ′ ← fine-tune trên trace của Φ⟨Θ,Π′⟩       (dữ liệu fine-tune tốt hơn)
+Π″ ← tối ưu prompt lại trên model Θ′        (điều chỉnh hành vi sau fine-tune)
+```
+Paper so sánh 8 chiến lược: Zero-shot, Π, Θ, Π→Π, Θ→Θ (đối chứng tốn hai vòng như nhau), và Π→Θ, Θ→Π, Π→Θ→Π.
 
 **Thí nghiệm.**
-- Task: **HotPotQA** (hỏi đáp nhiều bước), **GSM8K** (toán có lời văn), **Iris** (phân loại dựa trên đặc trưng).
-- LM: **mistral-7b**, **llama-2-7b**, **llama-3-8b**.
+- **HotPotQA**: 3 module CoT + ColBERTv2, Wikipedia 5 triệu đoạn.
+- **GSM8K**: 1 module CoT.
+- **Iris**: 1 module CoT, phân loại dựa trên đặc trưng số.
+- Model: Mistral-7B-Instruct-v0.2, Llama-2-7b-chat, Llama-3-8B-Instruct.
+- Kết quả là trung bình 3 seed trên tập test.
 
-**Kết quả** (theo abstract).
-- Kết hợp tối ưu prompt và trọng số **tốt nhất ở 7/9 cặp** (dataset × LM).
-- Trung bình theo LM và task, hơn "chỉ fine-tune trọng số" **tới 60%** và hơn "chỉ tối ưu prompt" **tới 6%** (bản arXiv v2; bản v1 ghi 65% và 5%).
-- Theo task: khoảng **5–78%** trên HotPotQA, **2.5–10%** trên GSM8K, **3.5–88%** trên Iris *(cần kiểm tra là so với baseline nào)*.
+**Kết quả chính (Bảng 1).**
+- Ở **7/9** cặp dataset × LM, chiến lược tốt nhất dùng **cả Π và Θ**; nhưng **không có thứ tự nào thắng tuyệt đối** giữa Π→Θ, Θ→Π, Π→Θ→Π.
+- **Tối ưu prompt là thiết yếu ở mọi task.** Chỉ fine-tune (Θ) từ zero-shot gần như không giúp, vì dữ liệu tự sinh từ prompt yếu cũng yếu.
+- Trung bình theo LM và task: hơn chỉ trọng số tới **60%**, hơn chỉ prompt tới **6%**. Theo task: **5–78%** (HotPotQA), **2.5–10%** (GSM8K), **3.5–88%** (Iris).
+
+| Ví dụ (Mistral-7B) | HotPotQA | GSM8K | Iris |
+|---|---|---|---|
+| Zero-shot | 17.2 | 40.3 | 26.0 |
+| Chỉ prompt (Π) | 33.8 | 46.4 | 57.3 |
+| Chỉ trọng số (Θ) | 22.9 | 40.7 | 29.3 |
+| Tốt nhất của BetterTogether | **37.6** (Π→Θ→Π) | **48.3** (Θ→Π) | **66.7** (Θ→Π) |
+
+**Hạn chế (tác giả tự nêu).** Chỉ 9 trường hợp; chỉ thử LoRA; **chưa hiểu vì sao** cả hai bước đều cần.
 
 ---
 
-## Cần lấy từ PDF trước khi làm (team BetterTogether)
-- [ ] Ký hiệu và cách phát biểu bài toán (program Φ, module, metric μ, tập train).
-- [ ] Thuật toán chính xác (pseudo-code), các thứ tự đã thử (vd. chỉ p, chỉ w, w→p, p→w, p→w→p).
-- [ ] Cấu hình fine-tune: LoRA rank, learning rate, epoch, lượng tử hoá; phần cứng.
-- [ ] Cấu hình tối ưu prompt: số ví dụ bootstrap, số candidate program.
-- [ ] Kích thước train/dev/test của mỗi dataset, retriever dùng cho HotPotQA.
-- [ ] Bảng kết quả chính (đầy đủ số) và phần phân tích.
-- [ ] Phần Limitations.
+## Thông số cài đặt (Phụ lục C — để tái hiện)
+
+| Mục | Giá trị trong paper |
+|---|---|
+| Chia dữ liệu | HotPotQA: 1000 train / 500 dev / 1500 test. GSM8K: 1000 / 500 / 1319. Iris: 150 mẫu chia đều 3 phần |
+| Dữ liệu cho tối ưu prompt | HotPotQA và GSM8K: 100 train + 250 validation; Iris: 15 + 35 (không chồng nhau) |
+| BFRS | 6 candidate program, tối đa 3 ví dụ few-shot mỗi module |
+| LoRA | layer query và key; rank 32, alpha 64, dropout 0 |
+| Train | 5 epoch, bfloat16, lr 1e-5, batch hiệu dụng 8 |
+| Suy luận | HuggingFace text-generation-inference; temperature 0.1; tối đa 1024 token |
+| Chi phí | Khoảng 75 giờ GPU A100 cho cả Bảng 1 |
 
 ## Điểm cần nhấn khi thuyết trình
-1. Vấn đề "không có nhãn trung gian": dùng ví dụ HotPotQA, hỏi khán giả *"truy vấn tìm kiếm đúng là gì?"*.
-2. Bootstrap: giữ lại trace dẫn tới đáp án đúng → nhãn trung gian "miễn phí".
-3. Cùng một nguồn dữ liệu (trace) có thể dùng cho **prompt** (few-shot) **hoặc** **trọng số** (LoRA) → paper hỏi: tại sao không dùng cả hai?
-4. Liên hệ với LoPA: LoPA = soft prompt, không sửa model; BetterTogether = hard prompt + LoRA, có sửa model nhưng tối ưu được cả pipeline.
-
-## Nguồn
-- [ACL Anthology 2024.emnlp-main.597](https://aclanthology.org/2024.emnlp-main.597)
-- [arXiv 2407.10930](https://arxiv.org/abs/2407.10930)
+1. "Không có nhãn trung gian": dùng ví dụ HotPotQA, hỏi khán giả *"truy vấn tìm kiếm đúng là gì?"*.
+2. Bootstrap = giữ trace dẫn tới đáp án đúng, tức có nhãn trung gian "miễn phí".
+3. Cùng một nguồn trace có hai cách dùng: **few-shot (prompt)** hoặc **LoRA (trọng số)**. Paper hỏi: sao không dùng cả hai?
+4. Bảng 1: chỉ ra dòng Θ gần như không tăng so với zero-shot, nhưng Π→Θ thì tăng. Đây là bằng chứng "prompt trước, fine-tune sau".
+5. Ví dụ trong Bảng A.1: suy luận ở hop 1 **sai** nhưng đáp án cuối **đúng**, vẫn được giữ làm dữ liệu. Đây là điểm yếu của bootstrap, dùng làm câu hỏi thảo luận.
+6. Liên hệ với LoPA: LoPA là soft prompt, không sửa model; BetterTogether là prompt chữ + LoRA, sửa model nhưng tối ưu được cả pipeline nhiều bước.
