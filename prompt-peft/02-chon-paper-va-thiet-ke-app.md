@@ -105,9 +105,33 @@ Train thật sẽ làm **trước** buổi thuyết trình (checkpoint có sẵn
 
 ---
 
-## 4. Câu hỏi cần nhóm quyết định
-- Chọn paper: LoPA (đề xuất) / POST / PARA?
-- Skill và ngôn ngữ dữ liệu: tiếng Anh (GLUE, dễ so sánh với paper) hay tiếng Việt (gần thực tế hơn)?
-- Phần cứng: Colab miễn phí (T4) / Kaggle / GPU riêng? → quyết định cỡ model.
-- Dạng app: Gradio (nhanh nhất) / Streamlit / web + API?
-- Thời lượng thuyết trình và số người trong nhóm?
+## 4. Quyết định đã chốt
+
+| Hạng mục | Lựa chọn |
+|---|---|
+| Paper | **LoPA** (NeurIPS 2024) |
+| Dữ liệu | **Cả hai**: skill tiếng Anh (SST-2, có số liệu paper để đối chiếu) + skill tiếng Việt (UIT-VSFC, review sinh viên) |
+| Phần cứng | Colab/Kaggle (T4) **hoặc** GPU riêng → code chạy được cả hai, chọn cỡ model bằng cấu hình |
+| Dạng app | **Web + API (FastAPI)** — tách client/server đúng như kiến trúc trong paper |
+
+### Hệ quả cho thiết kế
+- **LLM backbone**: `Qwen2.5-1.5B` (đa ngôn ngữ, hỗ trợ tiếng Việt). Trên T4 có thể giảm xuống `Qwen2.5-0.5B`; với GPU riêng có thể thử `Qwen2.5-3B/7B`. Đặt trong file config.
+- **Encoder cho Z_I**: `xlm-roberta-base` (đa ngôn ngữ; paper dùng RoBERTa cho tiếng Anh) + MLP (h = 256), rank r = 4, m = 10 virtual tokens như paper.
+- **FastAPI server** chỉ giữ LLM đã freeze, có endpoint nhận `soft_prompt + input` → dù có bao nhiêu skill thì server cũng không phải load adapter nào. Để so sánh, LoRA được phục vụ bằng endpoint riêng, phải gắn adapter của từng skill.
+- **Client** (web nhỏ, HTML/JS hoặc một service "skill") giữ các file skill LoPA, tạo `Z` rồi gọi server. Màn hình so sánh hiển thị 5 phương pháp như mục 3.
+
+### Cấu trúc thư mục dự kiến
+```
+prompt-peft/app/
+  config.yaml          # tên model, m, r, đường dẫn skill
+  lopa.py              # module LoPA (Z_S ⊙ sigmoid(u·vᵀ))
+  train.py             # train PT / LoRA / LoPA cho một skill
+  evaluate.py          # zero-shot, few-shot, PT, LoRA, LoPA → bảng kết quả
+  server/main.py       # FastAPI: LLM freeze + /generate, /generate_lora
+  client/              # web UI chọn skill + bảng so sánh
+  notebooks/demo.ipynb # chạy từng bước trên Colab/Kaggle khi thuyết trình
+```
+
+### Còn cần nhóm cho biết
+- Thời lượng thuyết trình và số người trong nhóm (để chia các bước demo).
+- Có muốn thêm skill code (CruxEval-O) giống paper không?
