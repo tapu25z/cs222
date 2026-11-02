@@ -231,3 +231,33 @@ Phương án dự phòng (theo thứ tự):
 3. Kết quả đã tính sẵn (bảng, trace) + video quay sẵn.
 
 Không nên phụ thuộc Colab/Kaggle khi đang thuyết trình (phiên có thể bị ngắt, phải chờ cấp GPU) — chỉ dùng chúng để train.
+
+### 6.1 Train LoPA trong 10–20GB VRAM
+
+**Vì sao paper dùng A100?** Thí nghiệm nặng nhất là backbone code 7–8B (DeepSeek-Coder-7B, Llama-3-8B) và baseline **full fine-tuning**: chính FFT bị OOM ở 7B dù có 2 × A100 40GB. Phần GLUE của paper chỉ dùng **RoBERTa-355M**, model nhỏ, nhẹ hơn nhiều.
+
+**Vì sao LoPA nhẹ?** Backbone **freeze**, nên không cần lưu gradient và trạng thái optimizer cho backbone, chỉ cho khoảng 1–6M tham số của LoPA. Nhưng soft prompt nằm ở **input**, nên gradient vẫn phải lan ngược qua **toàn bộ** backbone. Bộ nhớ chủ yếu là: trọng số backbone + activation.
+
+**Ước lượng VRAM khi train** (batch 16, độ dài input ≤ 128 token, có gradient checkpointing). Đây là số ước lượng, **phải đo lại bằng `torch.cuda.max_memory_allocated()`** ở tuần 2:
+
+| Backbone | Độ chính xác | Trọng số | VRAM train ước lượng | Ghi chú |
+|---|---|---|---|---|
+| `Qwen2.5-0.5B` | bf16 | khoảng 1GB | khoảng 3–5GB | Bản nhẹ, chạy được mọi nơi |
+| **`Qwen2.5-1.5B`** | bf16 | khoảng 3GB | **khoảng 6–10GB** | **Đề xuất chính cho demo** |
+| `Qwen2.5-3B` | bf16 | khoảng 6GB | khoảng 10–16GB | Vừa 16–24GB |
+| `Qwen2.5-7B` / `DeepSeek-Coder-6.7B` | **4-bit (NF4)** | khoảng 5GB | khoảng 10–16GB | Nếu muốn gần setup code của paper; backbone lượng tử hoá nên khác paper |
+| *(7–8B bf16)* | bf16 | khoảng 15GB | > 24GB | Không vừa 10–20GB |
+
+Encoder `xlm-roberta-base` (khoảng 280M) và MLP gần như không đáng kể.
+
+**Kỹ thuật giảm bộ nhớ** (theo thứ tự hiệu quả):
+1. **Precompute X′**: encoder freeze (paper cũng thấy fine-tune encoder không giúp), nên tính trước biểu diễn của mọi câu một lần rồi lưu ra đĩa. Khi train không cần load encoder.
+2. **Gradient checkpointing** cho backbone (`model.gradient_checkpointing_enable()`), đổi khoảng 30% thời gian lấy phần lớn bộ nhớ activation.
+3. **Input ngắn**: SST-2 và UIT-VSFC chỉ khoảng 30–60 token; đặt `max_length=128`. CruxEval-O dài hơn (đoạn code), nên dùng batch nhỏ hơn.
+4. **Batch nhỏ + gradient accumulation** (vd. batch 4 × accumulate 4 = batch hiệu dụng 16).
+5. **Lượng tử hoá 4-bit backbone** (bitsandbytes) chỉ khi cần model ≥ 7B. Gradient vẫn lan qua được tới soft prompt, giống cách QLoRA hoạt động.
+6. **Không chạy baseline full fine-tuning**: dùng số của paper để so sánh. LoRA trên 1.5B vẫn vừa khoảng 8–12GB.
+
+**Lưu ý với GPU T4 (Colab/Kaggle, 16GB):** T4 không hỗ trợ bf16. Dùng fp16 autocast nhưng giữ tham số LoPA ở fp32, và theo dõi loss bị NaN.
+
+**Khi demo (chỉ inference):** 1.5B bf16 cần khoảng 3–4GB; chạy được cả trên CPU vì phân loại chỉ sinh 1 token.
