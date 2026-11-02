@@ -132,6 +132,13 @@ prompt-peft/app/
   notebooks/demo.ipynb # chạy từng bước trên Colab/Kaggle khi thuyết trình
 ```
 
-### Còn cần nhóm cho biết
-- Thời lượng thuyết trình và số người trong nhóm (để chia các bước demo).
-- Có muốn thêm skill code (CruxEval-O) giống paper không?
+### Danh sách skill (đã chốt)
+| Skill | Ngôn ngữ | Dataset | Kiểu task | Metric | Encoder cho Z_I |
+|---|---|---|---|---|---|
+| Cảm xúc review | Tiếng Anh | SST-2 (GLUE) | Phân loại 2 lớp | Accuracy | `xlm-roberta-base` |
+| Cảm xúc phản hồi sinh viên | Tiếng Việt | UIT-VSFC | Phân loại 3 lớp | Accuracy, macro-F1 | `xlm-roberta-base` |
+| Dự đoán output của code | Python | CruxEval-O | Sinh chuỗi | Exact match (pass@1) | CodeSage-small (như paper) |
+
+Lưu ý với CruxEval-O: bộ dữ liệu chỉ có 800 mẫu, nên phải tự chia train/test và ghi rõ cách chia (cố định seed). Đây là skill sinh chuỗi, nên đánh giá bằng exact match chứ không phải accuracy phân loại. Encoder nằm ở phía client nên mỗi skill được dùng encoder riêng; backbone ở server vẫn chỉ có một.
+
+Kế hoạch thuyết trình và phân công nhóm: xem `03-ke-hoach-thuyet-trinh-va-phan-cong.md`.
