@@ -16,8 +16,9 @@
 | 1:15–1:28 | Kết quả | Bảng 5 phương pháp × 3 skill, ablation rank r, chi phí | 1 người |
 | 1:28–1:38 | *Nghỉ* | | |
 | **1:38–2:50** | **Paper 2 — BetterTogether** | | **Team BetterTogether** |
-| 1:38–2:03 | Paper | LM program và DSPy, vì sao không có nhãn trung gian, bootstrap trace, xen kẽ prompt ↔ LoRA, kết quả | 2 người |
-| 2:03–2:38 | Live build | 6 bước, mục 2.2 | 4 người |
+| 1:38–1:50 | **DSPy là gì** | Vấn đề prompt viết tay; Signature, Module, Program, Metric, Optimizer; so sánh với PyTorch; live code nhỏ + `inspect_history()`; bootstrap trace (file 01, mục 3) | 1 người |
+| 1:50–2:08 | Paper | Vì sao không có nhãn trung gian, prompt hay trọng số, xen kẽ prompt ↔ LoRA, kết quả | 2 người |
+| 2:08–2:38 | Live build | 6 bước, mục 2.2 (bước 1 dùng lại code của phần DSPy) | 4 người |
 | 2:38–2:50 | Kết quả | Bảng 4 cấu hình × 2 skill, xem trace trước/sau tối ưu | 1 người |
 | 2:50–3:00 | **Kết luận + Q&A** | So sánh 2 paper (mục 3), hạn chế, hướng mở rộng | Trưởng nhóm + cả nhóm |
 
@@ -35,7 +36,7 @@
 | 5 | Endpoint `/lopa/predict`: đổi skill không reload model | Đo độ trễ |
 | 6 | Web client: chọn skill + bảng so sánh | App Phần 1 |
 
-### 2.2 Phần BetterTogether (35 phút)
+### 2.2 Phần BetterTogether (30 phút)
 | Bước | Nội dung | Khán giả thấy |
 |---|---|---|
 | 1 | Viết DSPy program: CoT cho GSM8K, 2-hop cho HotPotQA; chạy zero-shot | Trace thô, accuracy baseline |
@@ -45,7 +46,7 @@
 | 5 | Tối ưu prompt lần nữa trên model đã fine-tune → **BetterTogether** | Accuracy cao nhất |
 | 6 | Endpoint `/bt/run` + tab mới trên client, xem trace | App Phần 2 |
 
-Nguyên tắc demo: mọi thứ train sẵn; trên sân khấu chỉ chạy bản thu nhỏ; có video quay sẵn. Hạ tầng: xem mục 5 của file 01.
+Nguyên tắc demo: mọi thứ train sẵn; trên sân khấu chỉ chạy bản thu nhỏ; có video quay sẵn. Hạ tầng: xem mục 6 của file 01.
 
 ---
 
@@ -73,7 +74,7 @@ Nguyên tắc demo: mọi thứ train sẵn; trên sân khấu chỉ chạy bả
 | ↳ Kết quả | 1 | Bảng, biểu đồ; trình bày phần kết quả |
 | **Team BetterTogether** | 6 | |
 | ↳ Paper | 2 | Đọc kỹ BetterTogether + DSPy (ICLR 2024), slide phần paper |
-| ↳ DSPy program + tối ưu prompt | 2 | `programs.py`, retriever BM25, `optimize.py` (phần prompt) |
+| ↳ DSPy program + tối ưu prompt | 2 | `programs.py`, retriever BM25, `optimize.py` (phần prompt); 1 người trình bày phần "DSPy là gì" |
 | ↳ Fine-tune + kết quả | 2 | QLoRA, phục vụ adapter bằng vLLM, bảng kết quả, trace |
 | **App / hạ tầng** | 1 | FastAPI server, web client, máy GPU demo, bản dự phòng CPU, video |
 
