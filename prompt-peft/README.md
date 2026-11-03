@@ -22,6 +22,7 @@ prompt-peft/
 │   ├── 01-lopa/               ← paper 1 (PDF + tóm tắt + dịch chi tiết)
 │   ├── 02-bettertogether/     ← paper 2
 │   ├── 03-dspy/               ← nền tảng cho paper 2
+│   ├── candidates/            ← bảng so sánh paper ứng viên 2025+ (Text-to-LoRA, GEPA, ...)
 │   └── reference/             ← paper tham khảo
 │       ├── basic/             ← CoT, GPT-3 few-shot, Adapter, LoRA, Lottery Ticket, slide CS224N
 │       └── advanced/          ← ứng viên không chọn: PARA, POST

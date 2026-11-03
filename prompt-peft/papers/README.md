@@ -13,6 +13,10 @@ Mỗi thư mục gồm:
 - `dich-chi-tiet.md`: **dịch và diễn giải từng mục** của paper sang tiếng Việt (mục nào khó thì có giải thích thêm).
 - File PDF.
 
+## Paper ứng viên mới (2025+)
+
+Bảng so sánh 21 paper từ 2025 trở đi (hội nghị, ý chính, code, độ dễ demo) và các cặp gợi ý: [`candidates/README.md`](candidates/README.md). Hiện vẫn giữ LoPA + BetterTogether làm paper chính.
+
 ## Paper tham khảo
 
 ### `reference/basic/` — nền tảng (team lý thuyết đã trình bày)
