@@ -1,7 +1,7 @@
 # BetterTogether — Dịch và diễn giải chi tiết
 
 > Bản dịch có diễn giải của *Fine-Tuning and Prompt Optimization: Two Great Steps that Work Better Together* (Soylu, Potts, Khattab — EMNLP 2024, trang 10696–10710). PDF: [`bettertogether-emnlp2024.pdf`](bettertogether-emnlp2024.pdf).
-> Ô **💡 Giải thích** là phần nhóm thêm vào, không có trong paper. Nên đọc [`../03-dspy/`](../03-dspy/) trước.
+> Ô **💡 Giải thích** là phần nhóm thêm vào, không có trong paper. Nên đọc [`../../../03-dspy/`](../../../03-dspy/) trước.
 
 ---
 

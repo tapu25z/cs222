@@ -1,6 +1,6 @@
-# Kế hoạch thuyết trình và phân công — LoPA + BetterTogether
+# Kế hoạch thuyết trình và phân công — Text-to-LoRA + GEPA
 
-> Buổi thuyết trình **khoảng 3 tiếng**, nhóm **15 người**. Lý thuyết cơ bản do team khác trình bày.
+> Buổi thuyết trình **khoảng 3 tiếng**, nhóm **15 người**. Lý thuyết cơ bản (prompting, LoRA) do team khác trình bày.
 > Thiết kế paper và app: xem `01-chon-paper-va-thiet-ke-app.md`.
 
 ---
@@ -9,56 +9,65 @@
 
 | Thời gian | Phần | Nội dung | Người trình bày |
 |---|---|---|---|
-| 0:00–0:08 | **Mở đầu** | Đề tài, vì sao chọn 2 paper (soft prompt vs. prompt chữ + LoRA), chạy thử app bản cuối | Trưởng nhóm |
-| **0:08–1:28** | **Paper 1 — LoPA** | | **Team LoPA** |
-| 0:08–0:35 | Paper | Vấn đề (Fig. 1) → công thức `Z_S ⊙ σ(u·vᵀ)` (Fig. 2) → so với PT, IDPG, LoRA → kết quả (Table 1, Fig. 4) | 2 người |
-| 0:35–1:15 | Live build | 6 bước, mục 2.1 | 4 người |
-| 1:15–1:28 | Kết quả | Bảng 5 phương pháp × 3 skill, ablation rank r, chi phí | 1 người |
-| 1:28–1:38 | *Nghỉ* | | |
-| **1:38–2:50** | **Paper 2 — BetterTogether** | | **Team BetterTogether** |
-| 1:38–1:50 | **DSPy là gì** | Vấn đề prompt viết tay; Signature, Module, Program, Metric, Optimizer; so sánh với PyTorch; live code nhỏ + `inspect_history()`; bootstrap trace (file 01, mục 3) | 1 người |
-| 1:50–2:08 | Paper | Vì sao không có nhãn trung gian, prompt hay trọng số, xen kẽ prompt ↔ LoRA, kết quả | 2 người |
-| 2:08–2:38 | Live build | 6 bước, mục 2.2 (bước 1 dùng lại code của phần DSPy) | 4 người |
-| 2:38–2:50 | Kết quả | Bảng 4 cấu hình × 2 skill, xem trace trước/sau tối ưu | 1 người |
-| 2:50–3:00 | **Kết luận + Q&A** | So sánh 2 paper (mục 3), hạn chế, hướng mở rộng | Trưởng nhóm + cả nhóm |
+| 0:00–0:08 | **Mở đầu** | Câu hỏi xuyên suốt: *đưa kiến thức vào trọng số hay vào prompt?* Hai hướng: T2L (chữ → LoRA), GEPA (thay LoRA bằng prompt). Chạy thử app bản cuối | Trưởng nhóm |
+| **0:08–1:25** | **Paper 1 — Text-to-LoRA** | | **Team T2L** |
+| 0:08–0:35 | Paper | Vấn đề mỗi task một LoRA → hypernetwork là gì → kiến trúc L/M/S (Hình 2) → reconstruction vs SFT → kết quả (Bảng 1, 2) → mô tả tốt và kém (Hình 4, Bảng 5) → t-SNE (Hình 5) | 2 người |
+| 0:35–1:12 | Live build | 6 bước, mục 2.1 | 4 người |
+| 1:12–1:25 | Kết quả & phân tích | Bảng so sánh của nhóm trên Gemma-2-2B, thí nghiệm mô tả tiếng Việt, hạn chế | 1 người |
+| 1:25–1:35 | *Nghỉ* | (đổi model trên máy demo nếu cần) | |
+| **1:35–2:52** | **Paper 2 — GEPA** | | **Team GEPA** |
+| 1:35–1:45 | DSPy là gì | Signature, Module, Program, Metric, Optimizer; `inspect_history()` (file 01, mục 4) | 1 người |
+| 1:45–2:07 | Paper | RL cần hàng chục nghìn rollout → ý tưởng suy ngẫm bằng ngôn ngữ → vòng tiến hoá (Hình 3, Thuật toán 1) → meta-prompt (Phụ lục C) → Pareto (Hình 4, Bảng 3) → kết quả (Hình 1, Bảng 1, 2) | 2 người |
+| 2:07–2:40 | Live build | 6 bước, mục 2.2 | 3 người |
+| 2:40–2:52 | Kết quả & phân tích | Bảng Baseline / MIPROv2 / GEPA của nhóm, đường cong theo rollout, cây tiến hoá, prompt trước và sau | 1 người |
+| 2:52–3:00 | **Kết luận + Q&A** | Slide so sánh 2 paper (mục 3), hạn chế, hướng mở rộng (Doc-to-LoRA, ACE…) | Trưởng nhóm + cả nhóm |
 
 ---
 
 ## 2. Các bước live build
 
-### 2.1 Phần LoPA (40 phút)
+### 2.1 Phần Text-to-LoRA (37 phút)
+
 | Bước | Nội dung | Khán giả thấy |
 |---|---|---|
-| 1 | Dữ liệu SST-2, UIT-VSFC, CruxEval-O; baseline zero/few-shot trên backbone freeze | Accuracy baseline |
-| 2 | Prompt Tuning (m = 10) | Loss giảm, khoảng 15K tham số |
-| 3 | LoRA bằng `peft` | Accuracy cao, nhưng adapter phải gắn vào model |
-| 4 | **LoPA**: viết `lopa.py` (khoảng 50 dòng), train ngắn, load checkpoint | Accuracy ngang LoRA, file skill vài MB |
-| 5 | Endpoint `/lopa/predict`: đổi skill không reload model | Đo độ trễ |
-| 6 | Web client: chọn skill + bảng so sánh | App Phần 1 |
+| 1 | Load Gemma-2-2B-it; chạy vài câu GSM8K và ARC: model gốc, thêm mô tả vào prompt, 3-shot ICL | Đáp án và accuracy baseline |
+| 2 | Load checkpoint T2L; in kiến trúc và số tham số; embed một mô tả bằng gte-large | Hypernetwork chỉ vài chục triệu tham số |
+| 3 | **Sinh LoRA từ mô tả** → in shape A, B từng layer → lưu adapter | Mất vài giây, file vài MB |
+| 4 | Gắn LoRA bằng `peft`, chạy lại câu hỏi bước 1; chạy trên tập con benchmark (load kết quả tính sẵn) | Accuracy tăng mà không train |
+| 5 | Thí nghiệm mô tả: chi tiết, "solve this task please", chuỗi ngẫu nhiên, tiếng Việt | Bảng giống Bảng 5 và ví dụ giống Hình 4 |
+| 6 | Tab "LoRA Studio" trên app: khán giả đề xuất một mô tả, nhóm sinh LoRA ngay | App Phần 1 |
 
-### 2.2 Phần BetterTogether (30 phút)
+### 2.2 Phần GEPA (33 phút)
+
 | Bước | Nội dung | Khán giả thấy |
 |---|---|---|
-| 1 | Viết DSPy program: CoT cho GSM8K, 2-hop cho HotPotQA; chạy zero-shot | Trace thô, accuracy baseline |
-| 2 | Tối ưu prompt (`BootstrapFewShotWithRandomSearch`) — chạy thu nhỏ, load kết quả đầy đủ | Prompt sau tối ưu (các ví dụ được chọn) |
-| 3 | Thu trace đúng → dữ liệu fine-tune | Vài mẫu dữ liệu tự sinh |
-| 4 | Fine-tune LoRA (`BootstrapFinetune`, QLoRA) — load adapter đã train | Accuracy "chỉ LoRA" |
-| 5 | Tối ưu prompt lần nữa trên model đã fine-tune → **BetterTogether** | Accuracy cao nhất |
-| 6 | Endpoint `/bt/run` + tab mới trên client, xem trace | App Phần 2 |
+| 1 | Viết chương trình DSPy cho task ràng buộc (IFBench) + metric + **hàm phản hồi** trả chữ | Hàm phản hồi chỉ vài dòng |
+| 2 | Chạy baseline; xem một trace thất bại và phản hồi của nó | "Ràng buộc X chưa đạt" |
+| 3 | **Chạy GEPA live** với ngân sách nhỏ; in prompt trước và sau mỗi vòng suy ngẫm | Prompt tự viết lại, điểm minibatch tăng |
+| 4 | Load kết quả GEPA và MIPROv2 đầy đủ (đã chạy trước, cùng ngân sách) | Bảng điểm và đường cong theo rollout |
+| 5 | Vẽ cây tiến hoá và biên Pareto | Hình giống Hình 4 của paper |
+| 6 | Tab "Prompt Evolution" trên app: chạy cùng câu hỏi với prompt gốc và prompt GEPA | App Phần 2 |
 
-Nguyên tắc demo: mọi thứ train sẵn; trên sân khấu chỉ chạy bản thu nhỏ; có video quay sẵn. Hạ tầng: xem mục 6 của file 01.
+Nguyên tắc demo:
+- Mọi kết quả nặng (bảng benchmark, lần chạy GEPA và MIPROv2 đầy đủ) **tính trước**; trên sân khấu chỉ chạy phần nhẹ.
+- Có **video quay sẵn** từng bước.
+- Hạ tầng: xem mục 6 của file 01.
 
 ---
 
 ## 3. Slide so sánh cuối buổi
 
-| | LoPA | BetterTogether |
+| | Text-to-LoRA | GEPA |
 |---|---|---|
-| Prompt | Soft (vector), sinh theo từng input | Hard (chữ + few-shot), tối ưu tự động |
-| PEFT | Không sửa model, chỉ thêm prefix | LoRA trên trọng số |
-| Cần nhãn | Nhãn cuối, train có gradient | Chỉ nhãn cuối, không cần gradient qua pipeline |
-| Hợp với | Một bước, nhiều task trên một server | Pipeline nhiều bước, suy luận |
-| Chi phí server | Không có adapter | Có adapter LoRA (hoặc merge) |
+| Đầu vào bằng chữ | Mô tả task (người viết) | Trace + phản hồi lỗi (môi trường sinh) |
+| Thứ được thay đổi | **Trọng số** (LoRA, q_proj và v_proj) | **Prompt** (câu lệnh từng module) |
+| Cần train trước | Có, một lần (hypernetwork, rất đắt) | Không |
+| Chi phí cho task mới | Một lần forward (vài giây) | Vài trăm tới vài nghìn rollout |
+| Cần dữ liệu task mới | Không (zero-shot) | Có, ít (vd. 150 train + 300 val) |
+| Dùng được với model đóng (API) | Không (cần trọng số) | Có |
+| Hạn chế chính | Chưa bằng LoRA train riêng; phụ thuộc chất lượng mô tả | Không thêm được kiến thức model chưa có; tốn rollout cho validation |
+
+Thông điệp chốt: **"Ngôn ngữ là giao diện chung để thích nghi LLM"**, kể cả khi kết quả cuối là trọng số (T2L) hay là prompt (GEPA).
 
 ---
 
@@ -67,16 +76,17 @@ Nguyên tắc demo: mọi thứ train sẵn; trên sân khấu chỉ chạy bả
 | Nhóm | Số người | Trách nhiệm |
 |---|---|---|
 | **Trưởng nhóm / MC** | 1 | Điều phối, kịch bản, canh giờ, mở đầu và kết luận, ghép slide |
-| **Team LoPA** | 7 | |
-| ↳ Paper | 2 | Đọc kỹ LoPA (và lướt PT, IDPG, DePT), slide phần paper, chuẩn bị câu hỏi phản biện |
-| ↳ Data + baseline | 1 | 3 dataset, template prompt, `evaluate.py` |
-| ↳ Train | 3 | Mỗi người một skill: PT, LoRA, LoPA; ablation rank |
+| **Team Text-to-LoRA** | 7 | |
+| ↳ Paper | 2 | Đọc kỹ T2L (+ lướt Hyperdecoders, Gisting, Doc-to-LoRA), slide phần paper, câu hỏi phản biện |
+| ↳ Môi trường + checkpoint | 1 | Cài code SakanaAI, tải checkpoint Gemma (và Mistral nếu đủ GPU), script sinh LoRA |
+| ↳ Đánh giá | 2 | Tập con benchmark, so sánh 4 cách, thí nghiệm mô tả (gồm tiếng Việt) |
+| ↳ Phân tích + mở rộng | 1 | t-SNE LoRA; (mở rộng) train vài LoRA oracle và T2L reconstruction nhỏ |
 | ↳ Kết quả | 1 | Bảng, biểu đồ; trình bày phần kết quả |
-| **Team BetterTogether** | 6 | |
-| ↳ Paper | 2 | Đọc kỹ BetterTogether + DSPy (ICLR 2024), slide phần paper |
-| ↳ DSPy program + tối ưu prompt | 2 | `programs.py`, retriever BM25, `optimize.py` (phần prompt); 1 người trình bày phần "DSPy là gì" |
-| ↳ Fine-tune + kết quả | 2 | QLoRA, phục vụ adapter bằng vLLM, bảng kết quả, trace |
-| **App / hạ tầng** | 1 | FastAPI server, web client, máy GPU demo, bản dự phòng CPU, video |
+| **Team GEPA** | 6 | |
+| ↳ Paper + DSPy | 2 | Đọc kỹ GEPA và DSPy; 1 người trình bày "DSPy là gì", cả hai trình bày phần paper |
+| ↳ Chương trình + hàm phản hồi | 2 | Chương trình DSPy cho IFBench và HotpotQA, metric, μ_f, retriever BM25 |
+| ↳ Chạy optimizer + kết quả | 2 | Chạy GEPA và MIPROv2 cùng ngân sách, log, cây tiến hoá, đường cong; trình bày kết quả |
+| **App / hạ tầng** | 1 | FastAPI, web client, máy GPU demo, vLLM, API key, video dự phòng |
 
 Tổng: 1 + 7 + 6 + 1 = **15 người**. Người phụ trách app nên được 1 người ở mỗi team hỗ trợ ghép endpoint.
 
@@ -84,18 +94,18 @@ Tổng: 1 + 7 + 6 + 1 = **15 người**. Người phụ trách app nên được
 
 ## 5. Lộ trình chuẩn bị (6 tuần, điều chỉnh theo ngày thuyết trình)
 
-| Tuần | Team LoPA | Team BetterTogether | App |
+| Tuần | Team T2L | Team GEPA | App |
 |---|---|---|---|
-| 1 | Đọc paper, chốt backbone, dữ liệu | Đọc paper + tutorial DSPy, tải PDF vào repo | Khung `app/`, `config.yaml` |
-| 2 | Baseline + PT | DSPy program chạy được với model nhỏ, baseline | Server khung |
-| 3 | LoRA + `lopa.py` trên SST-2 | Tối ưu prompt đầy đủ trên GPU riêng | `/lopa/predict` |
-| 4 | LoPA cho 3 skill, ablation | Fine-tune LoRA + vòng prompt thứ 2 | `/bt/run`, vLLM + LoRA |
+| 1 | Đọc paper; cài code SakanaAI; sinh được LoRA đầu tiên với Gemma-2-2B | Đọc paper + DSPy; `pip install gepa dspy`; chạy ví dụ AIME trong README của GEPA | Khung `app/`, `config.yaml`; dựng vLLM |
+| 2 | Baseline (gốc, mô tả, ICL) trên tập con benchmark; **đo VRAM** | Chương trình IFBench + hàm phản hồi; baseline | Endpoint `/t2l/generate` |
+| 3 | T2L trên mọi benchmark con; thí nghiệm mô tả | GEPA trên IFBench (ngân sách nhỏ → vừa) | `/t2l/chat` (đổi adapter nóng) |
+| 4 | t-SNE; (mở rộng) LoRA oracle, T2L reconstruction | HotpotQA; MIPROv2 cùng ngân sách; log cây | `/gepa/*`, vẽ cây |
 | 5 | Slide + kết quả | Slide + kết quả | Client hoàn chỉnh, **tổng duyệt 1** |
-| 6 | Sửa theo góp ý | Sửa theo góp ý | Dự phòng CPU/GGUF, video, **tổng duyệt 2** trên đúng máy demo |
+| 6 | Sửa theo góp ý | Sửa theo góp ý | Video dự phòng, **tổng duyệt 2** trên đúng máy demo |
 
 Mốc go/no-go:
-- **Cuối tuần 3**: LoPA chưa chạy được → giảm xuống 0.5B hoặc bỏ CruxEval-O. Tối ưu prompt quá chậm → giảm tập train/dev, chỉ giữ GSM8K.
-- **Cuối tuần 4**: LoRA 7–8B không vừa GPU → chuyển BetterTogether sang Qwen2.5-3B.
+- **Cuối tuần 1**: chưa chạy được code T2L → dùng đúng môi trường `uv` của repo gốc, hoặc chạy trên Colab/Kaggle.
+- **Cuối tuần 3**: GEPA quá chậm hoặc tốn → giảm ngân sách, dùng Qwen3-4B, chỉ giữ IFBench.
 - **Cuối tuần 5**: app chạy trọn từ đầu đến cuối; không thêm tính năng mới.
 
 ---
@@ -104,8 +114,9 @@ Mốc go/no-go:
 
 | Rủi ro | Cách xử lý |
 |---|---|
-| Kết quả không giống paper | Báo cáo trung thực; so sánh tương đối giữa các phương pháp trên cùng setup; ghi rõ chỗ khác paper (model, retriever) |
-| DSPy tối ưu tốn nhiều lần gọi LLM | Chạy trên vLLM local (không tốn tiền API); giảm số candidate; cache kết quả |
-| Phiên bản DSPy thay đổi API | Cố định phiên bản trong `requirements.txt` |
-| GPU, mạng hỏng khi thuyết trình | Dự phòng CPU + GGUF, kết quả tính sẵn, video |
-| Hai team trình bày trùng nội dung | Trưởng nhóm giữ kịch bản chung; mở đầu nói luôn khung so sánh để hai phần nối nhau |
+| Kết quả T2L trên Gemma thấp hơn paper | Báo cáo trung thực; dùng đúng prompt đánh giá của repo (`run_eval.py`); so sánh tương đối |
+| Mô tả tiếng Việt cho LoRA kém | Đây là kết quả thí nghiệm hợp lệ (T2L train bằng tiếng Anh); dùng làm điểm thảo luận |
+| GEPA tốn tiền API | Đặt giới hạn chi tiêu; ngân sách nhỏ; dùng task LM local, chỉ reflection qua API |
+| Không tái hiện được GRPO | Nói rõ là trích số của paper; GRPO cần 24.000 rollout và GPU 80GB |
+| Phiên bản `gepa`, `dspy`, code T2L thay đổi | Cố định phiên bản trong `requirements.txt`; ghi commit của repo SakanaAI đã dùng |
+| GPU, mạng hỏng khi thuyết trình | Client hiển thị kết quả tính sẵn không cần GPU; video dự phòng |

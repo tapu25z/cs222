@@ -7,7 +7,7 @@
 | Hội nghị | **EMNLP 2024** (main conference), trang 10696–10710 |
 | Link | [ACL Anthology 2024.emnlp-main.597](https://aclanthology.org/2024.emnlp-main.597) · [arXiv 2407.10930](https://arxiv.org/abs/2407.10930) · PDF trong repo: [`bettertogether-emnlp2024.pdf`](bettertogether-emnlp2024.pdf) |
 | Code | Optimizer `BetterTogether` trong thư viện [DSPy](https://github.com/stanfordnlp/dspy) (http://dspy.ai) |
-| Cần đọc trước | [`../03-dspy/`](../03-dspy/) |
+| Cần đọc trước | [`../../../03-dspy/`](../../../03-dspy/) |
 | Dịch chi tiết | [`dich-chi-tiet.md`](dich-chi-tiet.md) |
 
 ---

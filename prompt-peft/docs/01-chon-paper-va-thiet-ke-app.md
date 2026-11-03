@@ -1,52 +1,68 @@
 # Chọn paper và thiết kế app — Prompting + PEFT nâng cao
 
 > Phần lý thuyết cơ bản (prompting, LoRA, prompt tuning) do một team khác trình bày; tài liệu này chỉ tập trung vào 2 paper nâng cao và app demo.
+> Lịch sử: nhóm từng chọn LoPA + BetterTogether (tài liệu còn ở `papers/reference/previous/`), sau đó đổi sang 2 paper mới hơn bên dưới. Bảng so sánh các ứng viên: [`papers/candidates/README.md`](../papers/candidates/README.md).
 
 ---
 
 ## 1. Hai paper đã chọn
 
-| | **Paper 1 — LoPA** | **Paper 2 — BetterTogether** |
+| | **Paper 1 — Text-to-LoRA (T2L)** | **Paper 2 — GEPA** |
 |---|---|---|
-| Tên đầy đủ | *Prompt Tuning Strikes Back: Customizing Foundation Models with Low-Rank Prompt Adaptation* | *Fine-Tuning and Prompt Optimization: Two Great Steps that Work Better Together* |
-| Tác giả | Jain, Chaudhuri, Reps, Jermaine | Soylu, Potts, Khattab (Stanford, nhóm DSPy) |
-| Hội nghị | **NeurIPS 2024** | **EMNLP 2024** (main, 2024.emnlp-main.597) |
-| Tài liệu | [`papers/01-lopa/`](../papers/01-lopa/) | [`papers/02-bettertogether/`](../papers/02-bettertogether/) |
-| Loại prompt | **Soft prompt** (vector do máy học) | **Hard prompt** (prompt chữ + ví dụ few-shot, do máy tối ưu) |
-| Loại PEFT | Prompt tuning nâng cấp, so với LoRA | **LoRA** fine-tune trọng số |
-| Câu hỏi chính | Prompt tuning có thể mạnh ngang LoRA mà server không phải lưu adapter không? | Nên tối ưu prompt **hay** fine-tune trọng số? → Làm **cả hai**, xen kẽ |
+| Tên đầy đủ | *Text-to-LoRA: Instant Transformer Adaption* | *GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning* |
+| Tác giả | Charakorn, Cetin, Tang, Lange (Sakana AI) | Agrawal, …, Potts, Zaharia, Khattab (UC Berkeley, Stanford, Databricks, MIT…) |
+| Hội nghị | **ICML 2025** | **ICLR 2026, Oral** |
+| Tài liệu | [`papers/01-text-to-lora/`](../papers/01-text-to-lora/) | [`papers/02-gepa/`](../papers/02-gepa/) (+ nền tảng [`papers/03-dspy/`](../papers/03-dspy/)) |
+| Code | [SakanaAI/text-to-lora](https://github.com/SakanaAI/text-to-lora), **có checkpoint đã train** | `pip install gepa`, có trong DSPy (`dspy.GEPA`) |
+| Đầu vào | **Mô tả task bằng chữ** | **Trace + phản hồi bằng chữ** từ các lần chạy |
+| Đầu ra | **LoRA adapter** (trọng số) | **Prompt** mới (câu lệnh) |
+| Câu hỏi chính | Có thể sinh LoRA cho task mới chỉ từ một câu mô tả, không cần train? | Tối ưu prompt bằng suy ngẫm ngôn ngữ có thắng được fine-tune LoRA bằng RL không? |
 
-**Vì sao ghép 2 paper này**: đề tài là *Prompting + PEFT*.
-- LoPA: *prompt học dưới dạng vector*, PEFT ở phía **input**.
-- BetterTogether: *prompt chữ được tối ưu tự động* + *LoRA trên trọng số*, áp dụng cho **pipeline nhiều bước** (CoT, hỏi đáp nhiều bước).
+**Vì sao ghép 2 paper này.** Cả hai đều dùng **ngôn ngữ tự nhiên để thích nghi LLM**, nhưng theo hai hướng ngược nhau:
+- **T2L: Prompt → PEFT.** Viết một câu mô tả, hypernetwork biến nó thành **trọng số LoRA**.
+- **GEPA: PEFT → Prompt.** Thay vì fine-tune trọng số (GRPO + LoRA), **tối ưu prompt** bằng cách cho LLM tự đọc lỗi và sửa câu lệnh, và thắng.
 
-Hai paper phủ đủ hai nửa của đề tài và đi từ task đơn giản (phân loại, một bước) tới task phức tạp (suy luận nhiều bước).
+Câu hỏi xuyên suốt buổi thuyết trình: **"Khi nào nên đưa kiến thức vào trọng số, khi nào nên đưa vào prompt?"**
 
-Các paper đã cân nhắc nhưng không chọn: POST (ICML 2025, khó demo vì phải distill), PARA (sửa mọi tầng ở server, ngược thông điệp của LoPA), S-LoRA (MLSys 2024, thiên về hệ thống), Gist Tokens (NeurIPS 2023), DePT (ICLR 2024, quá giống LoPA — dùng làm baseline), DoRA (ICML 2024, thuần PEFT).
+Cả hai đều mới (2025–2026), ở hội nghị top, có code chính thức, và **không cần tự train mô hình lớn** để demo: T2L có checkpoint sẵn; GEPA chỉ gọi LLM.
 
 ---
 
-## 2. Paper 1 — LoPA trong 1 trang
+## 2. Paper 1 — Text-to-LoRA trong 1 trang
 
-**Vấn đề**: LoRA mạnh nhưng mỗi task cần một adapter lưu và chạy **trên server**. Prompt tuning thì không cần (chỉ là prefix của input) nhưng **yếu hơn**.
+**Vấn đề.** Mỗi task cần một LoRA riêng: gom dữ liệu, chọn siêu tham số, train lâu.
 
-**Ý tưởng**: soft prompt `Z` (m vector × d chiều) gồm 2 phần:
+**Ý tưởng.** Train một **hypernetwork** `h_θ` sinh trọng số LoRA:
 ```
-Z  =  Z_S  ⊙  sigmoid( u · vᵀ )
-      ^^^      ^^^^^^^^^^^^^^^^
-  phần chung   phần riêng cho từng input (Z_I), dạng low-rank hạng r:
-  của task     u = MLP_u(X'),  v = MLP_v(X'),  X' = biểu diễn input từ một encoder nhỏ
+ΔW_{m,l} = h_θ( concat[ f(mô tả task), E[module m], E[layer l] ] )
 ```
-`concat(Z, embedding(input))` → LLM **freeze**. Chỉ train `Z_S`, `MLP_u`, `MLP_v`.
-- Cổng sigmoid + nhân từng phần tử → hai phần học phụ thuộc nhau (tốt hơn cộng `Z_S + Z_I` như IDPG).
-- Trong paper: m = 10, encoder RoBERTa (NLU) / CodeSage (code) + MLP; ngang FFT và LoRA trên GLUE, thắng LoRA 11/24 trường hợp.
+- `f`: embedding của mô tả (gte-large-en-v1.5). `E`: embedding học được của loại module (q_proj, v_proj) và chỉ số layer.
+- Gộp mọi (m, l) vào một batch → **toàn bộ LoRA sinh ra trong một lần forward** (vài giây).
+- Train bằng **SFT trên 479 task** (Super-NaturalInstructions), mỗi task 128 mô tả do GPT-4o-mini viết. Train bằng reconstruction (bắt chước LoRA có sẵn) thì **không khái quát** được.
 
-## 3. DSPy là gì? (kiến thức cần trước Paper 2)
+**Kết quả** (Mistral-7B, 10 benchmark chưa thấy): gốc 55.8 → thêm mô tả vào prompt 60.6 → 3-shot ICL 61.0 → multi-task LoRA 66.3 → **T2L 67.7**. Chạy được với Llama-3.1-8B (73.2 → 76.9) và **Gemma-2-2B** (60.7 → 66.4). Rẻ hơn 3-shot ICL hơn 4 lần về FLOPs.
+
+**Điểm "wow" cho demo**: mô tả khác nhau → LoRA khác nhau → **phong cách trả lời khác nhau** (Hình 4); mô tả kém ("solve this task please") → không giúp.
+
+## 3. Paper 2 — GEPA trong 1 trang
+
+**Vấn đề.** RL (GRPO) để thích nghi LLM cần **hàng chục nghìn rollout**, mỗi rollout chỉ cho **một con số thưởng**.
+
+**Ý tưởng.** Trace của hệ LLM là **văn bản**; hãy để LLM **đọc và suy ngẫm** về nó. GEPA tối ưu **chỉ prompt** bằng:
+1. **Vòng tiến hoá**: pool ứng viên → chọn → đột biến (hoặc Merge) → thử trên minibatch 3 ví dụ → giữ nếu tốt hơn.
+2. **Đột biến bằng suy ngẫm**: hàm phản hồi μ_f trả về **điểm + phản hồi chữ** (vd. "ràng buộc X chưa đạt", "còn thiếu tài liệu Y"); reflection LM đọc rồi **viết lại câu lệnh** của một module.
+3. **Chọn theo Pareto**: giữ mọi ứng viên **thắng ít nhất một ví dụ**, tránh kẹt cực trị địa phương.
+
+**Kết quả** (Qwen3-8B, 6 benchmark): baseline 45.23 → GRPO (LoRA, 24.000 rollout) 48.91 → MIPROv2 47.84 → **GEPA 54.85**, chỉ dùng 1.839–7.051 rollout. Với GPT-4.1 mini: 53.03 → **GEPA+Merge 66.36**. Chi phí GEPA cho 6 benchmark khoảng 86 USD.
+
+---
+
+## 4. DSPy là gì? (kiến thức cần trước GEPA)
 
 > Paper: *DSPy: Compiling Declarative Language Model Calls into State-of-the-Art Pipelines* — Khattab et al., **ICLR 2024**. Thư viện: `pip install dspy`, tài liệu tại https://dspy.ai.
-> BetterTogether được cài đặt **bên trong DSPy**, nên phải hiểu DSPy trước thì mới hiểu được paper.
+> GEPA là một **optimizer của DSPy** (`dspy.GEPA`), và baseline chính của GEPA (MIPROv2) cũng là optimizer DSPy. Hiểu DSPy trước thì phần GEPA dễ theo hơn nhiều.
 
-### 3.1 Vấn đề DSPy giải quyết
+### 4.1 Vấn đề DSPy giải quyết
 Ứng dụng LLM thật thường là **pipeline nhiều bước** (ví dụ: sinh truy vấn → tìm tài liệu → tóm tắt → trả lời). Cách làm truyền thống:
 - Mỗi bước có một **prompt viết tay dài**, phải chỉnh bằng cách thử–sai.
 - Đổi model (GPT → Llama) hoặc đổi một bước thì các prompt khác có thể hỏng, phải chỉnh lại từ đầu.
@@ -65,7 +81,7 @@ Có thể so sánh với PyTorch:
 | Optimizer (Adam) cập nhật **trọng số** | **Optimizer** (trước đây gọi là *teleprompter*) cập nhật **prompt / ví dụ few-shot / trọng số** |
 | `model.fit()` | `optimizer.compile(program, trainset=...)` |
 
-### 3.2 Năm khái niệm chính
+### 4.2 Năm khái niệm chính
 
 **1. Signature** — khai báo input → output, không viết prompt:
 ```python
@@ -111,12 +127,12 @@ def exact_match(example, pred, trace=None):
 **5. Optimizer + compile** — tự tìm prompt tốt nhất:
 ```python
 opt = dspy.BootstrapFewShotWithRandomSearch(metric=exact_match,
-                                            max_bootstrapped_demos=3, num_candidate_programs=6)  # như BetterTogether
+                                            max_bootstrapped_demos=3, num_candidate_programs=6)
 compiled = opt.compile(MultiHopQA(), trainset=train)
 compiled.save("hotpot_prompt_opt.json")        # lưu lại, khi demo chỉ cần load
 ```
 
-### 3.3 Bên trong optimizer làm gì? (cầu nối sang BetterTogether)
+### 4.3 Bên trong optimizer làm gì? (cầu nối sang GEPA)
 `BootstrapFewShot`:
 1. Chạy program trên các câu hỏi trong tập train.
 2. Ghi lại **trace**: input/output của *từng* module ở mỗi lần chạy.
@@ -127,137 +143,118 @@ compiled.save("hotpot_prompt_opt.json")        # lưu lại, khi demo chỉ cầ
 
 Các optimizer khác: `MIPROv2` (tối ưu cả câu lệnh lẫn ví dụ), `BootstrapFinetune` (dùng chính các trace đúng đó để **fine-tune trọng số** thay vì làm ví dụ few-shot).
 
-**BetterTogether hỏi**: nên dùng trace để làm ví dụ few-shot (*prompt*) hay để fine-tune (*trọng số*)? → **Dùng cả hai, xen kẽ.**
+**GEPA làm khác**: thay vì chọn *ví dụ* từ trace đúng, GEPA đưa trace **kèm phản hồi dạng chữ** (vì sao sai) cho một LLM để **viết lại câu lệnh** của từng module:
+```python
+optimizer = dspy.GEPA(metric=metric_with_feedback,      # trả về điểm + feedback (chữ)
+                      max_metric_calls=150,              # ngân sách rollout
+                      reflection_lm=dspy.LM("openai/gpt-4.1-mini"))
+optimized = optimizer.compile(MultiHopQA(), trainset=train, valset=val)
+```
 
-### 3.4 Gợi ý cách trình bày (khoảng 12 phút)
+### 4.4 Gợi ý cách trình bày (khoảng 10 phút)
 1. Một pipeline viết prompt tay, đổi model thì hỏng (1 slide).
 2. Bảng so sánh PyTorch ↔ DSPy (1 slide).
 3. Live code: signature + `ChainOfThought` cho GSM8K, dùng `dspy.inspect_history()` để **in ra prompt thật** mà DSPy sinh ra.
 4. Live code: program multi-hop, chỉ ra "không có nhãn cho bước sinh truy vấn".
-5. Hình minh hoạ bootstrap trace → ví dụ few-shot → dẫn sang paper.
+5. Hình minh hoạ: bootstrap trace → ví dụ few-shot (DSPy gốc, MIPROv2) và trace + phản hồi → viết lại câu lệnh (GEPA) → dẫn sang paper.
 
 Lưu ý: API của DSPy thay đổi khá nhanh giữa các phiên bản (vd. `dspy.OpenAI` cũ → `dspy.LM`, `rationale` → `reasoning`). Cần cố định phiên bản trong `requirements.txt` và kiểm tra lại code mẫu ở trên với phiên bản đó.
 
 ---
 
-## 4. Paper 2 — BetterTogether trong 1 trang
+## 5. App: "Language-Driven Adaptation Lab"
 
-**Bối cảnh**: một "LM program" (DSPy) gồm nhiều module gọi LLM, ví dụ: *sinh truy vấn → tìm tài liệu → sinh truy vấn 2 → tìm → trả lời* (HotPotQA). Chỉ có nhãn cho **đáp án cuối**, **không có nhãn cho các bước trung gian**, và không lan truyền gradient qua cả pipeline được.
+Một **FastAPI server** + **web client**, 2 tab tương ứng 2 paper, cùng một câu hỏi: *dùng chữ để thích nghi LLM*.
 
-**Hai cách tối ưu**:
-- *Prompt optimization* (DSPy `BootstrapFewShotWithRandomSearch`): chạy chương trình trên tập train, giữ lại các "vết" (trace) cho ra đáp án đúng, dùng chúng làm ví dụ few-shot cho từng module; thử nhiều tổ hợp và chọn cái tốt nhất trên tập validation.
-- *Weight fine-tuning* (DSPy `BootstrapFinetune`): dùng chính các trace đúng đó làm dữ liệu train LoRA cho LLM → **model tự dạy chính nó**, không cần nhãn trung gian.
+### Tab 1 — "LoRA Studio" (Text-to-LoRA)
+Người dùng **gõ mô tả task** → server sinh LoRA bằng T2L (vài giây) → gắn vào model gốc → **chat song song**: model gốc và model + LoRA vừa sinh.
 
-**BetterTogether** = xen kẽ hai bước: **tối ưu prompt → fine-tune trọng số (LoRA) trên trace của prompt đã tối ưu → tối ưu prompt lần nữa**.
-
-**Kết quả trong paper**: HotPotQA, GSM8K, Iris với Mistral-7B, Llama-2-7B, Llama-3-8B; kết hợp tốt nhất ở 7/9 cặp dataset × model, hơn "chỉ fine-tune" tới 60% và hơn "chỉ tối ưu prompt" tới 6% (trung bình theo model và task).
-
-Cấu hình trong paper: tối ưu prompt bằng BFRS (6 candidate, tối đa 3 ví dụ mỗi module); LoRA trên layer query và key, rank 32, alpha 64, 5 epoch, lr 1e-5; HotPotQA dùng ColBERTv2 trên Wikipedia 5 triệu đoạn. Chi tiết: [`papers/02-bettertogether/`](../papers/02-bettertogether/).
-
----
-
-## 5. App: "One Model, Many Skills"
-
-Một **FastAPI server** + **web client**. Cùng một app, hai phần tương ứng hai paper.
-
-### Phần 1 — LoPA skills (task một bước)
-| Skill | Ngôn ngữ | Dataset | Metric | Encoder cho Z_I |
-|---|---|---|---|---|
-| Cảm xúc review | Anh | SST-2 | Accuracy | `xlm-roberta-base` |
-| Cảm xúc phản hồi sinh viên | Việt | UIT-VSFC | Accuracy, macro-F1 | `xlm-roberta-base` |
-| Dự đoán output code | Python | CruxEval-O (800 mẫu, tự chia train/test, seed cố định) | Exact match | CodeSage-small |
-
-So sánh: Zero-shot · Few-shot · Prompt Tuning · LoRA · **LoPA** (accuracy, số tham số train, dung lượng file, server có phải load adapter không).
-
-### Phần 2 — BetterTogether skills (pipeline nhiều bước)
-| Skill | Dataset | DSPy program | Metric |
-|---|---|---|---|
-| Giải toán có lời văn | GSM8K | `ChainOfThought("question -> answer")` | Exact match |
-| Hỏi đáp nhiều bước | HotPotQA | 2 hop: `GenerateQuery → Retrieve → GenerateQuery → Retrieve → Answer` | Exact match |
-| (Tuỳ chọn) Toán tiếng Việt | Bản dịch một phần GSM8K, hoặc ViMMRC | như GSM8K | Exact match |
-
-So sánh (giống bảng chính của paper): Zero-shot · Chỉ tối ưu prompt · Chỉ LoRA · **Prompt → LoRA → Prompt**.
-Client hiển thị thêm **trace từng bước** (truy vấn sinh ra, tài liệu tìm được, lời giải CoT) để khán giả thấy prompt đã được tối ưu trông như thế nào.
-
-Retriever cho HotPotQA: để chạy offline và gọn, dùng BM25 trên các đoạn văn có sẵn trong HotPotQA (distractor setting) thay vì index toàn bộ Wikipedia. Đây là điểm khác so với paper; cần ghi rõ trong slide.
-
-### Backbone
-| Phần | Model chính (GPU riêng) | Bản nhẹ (Colab/Kaggle T4) |
+| Tính năng | Mô tả | Liên hệ paper |
 |---|---|---|
-| LoPA | `Qwen2.5-1.5B` | `Qwen2.5-0.5B` |
-| BetterTogether | `Qwen2.5-7B-Instruct` hoặc `Llama-3.1-8B-Instruct` (QLoRA 4-bit) | `Qwen2.5-1.5B/3B-Instruct` |
+| Sinh LoRA từ mô tả | Hiện thời gian sinh, số tham số, dung lượng file adapter | Mục 3, Hình 1–2 |
+| So sánh 4 cách | Model gốc · thêm mô tả vào prompt · 3-shot ICL · **T2L LoRA** trên tập con benchmark (GSM8K, ARC-Easy, BoolQ, PIQA, khoảng 100 câu mỗi bộ) | Bảng 2, Bảng 8 |
+| Mô tả tốt và kém | Cùng câu hỏi, 3–4 mô tả (chi tiết, "solve this task please", chuỗi ngẫu nhiên, mô tả task khác) → so đáp án | Hình 4, Bảng 5 |
+| Bản đồ LoRA | t-SNE các LoRA sinh từ mô tả của nhiều task → task giống nhau nằm gần nhau | Hình 5 |
+| (Thử nghiệm của nhóm) Mô tả tiếng Việt | T2L train hoàn toàn bằng tiếng Anh; thử mô tả tiếng Việt xem LoRA còn hữu ích không | Ngoài phạm vi paper; báo cáo trung thực |
 
-Qwen hỗ trợ tiếng Việt; Llama-3 gần với setup của paper hơn. Chọn trong `config.yaml`.
+### Tab 2 — "Prompt Evolution" (GEPA)
+Chọn một task → xem **prompt tiến hoá** qua từng vòng GEPA: phản hồi chữ, prompt mới, điểm tăng dần.
+
+| Task | Dữ liệu | Chương trình DSPy | Hàm phản hồi μ_f (chữ) | Liên hệ paper |
+|---|---|---|---|---|
+| **Làm theo ràng buộc** | IFBench / IF-RLVR (như paper) | 2 bước: trả lời → viết lại theo ràng buộc | "Ràng buộc nào đạt, ràng buộc nào chưa đạt" | IFBench |
+| **Hỏi đáp nhiều bước** | HotpotQA | 2 hop: truy vấn → tìm → truy vấn → tìm → trả lời | "Tài liệu nào còn thiếu ở hop này" | HotpotQA, Hình 2 |
+| (Tuỳ chọn) Task tiếng Việt | Vd. trích xuất thông tin hoặc phân loại phản hồi sinh viên (UIT-VSFC) | 1–2 bước | "Sai nhãn nào, vì sao" | Cho thấy GEPA không phụ thuộc ngôn ngữ |
+
+| Tính năng | Mô tả |
+|---|---|
+| So sánh optimizer | Baseline · MIPROv2 · **GEPA** (cùng ngân sách rollout). GRPO: **không tái hiện** (quá nặng), chiếu số của Bảng 1 |
+| Đường cong điểm theo rollout | Như Hình 1 |
+| Cây tiến hoá | Vẽ cây ứng viên (cha → con), tô các ứng viên trên biên Pareto, như Hình 4 |
+| Xem prompt | Diff giữa prompt gốc và prompt sau mỗi vòng, kèm phản hồi đã dẫn tới thay đổi |
+| Chạy prompt tối ưu | Nhập câu hỏi → chạy chương trình với prompt gốc và prompt GEPA |
+
+### Model
+
+| Phần | Model chính (GPU 16–24GB) | Bản nhẹ | Ghi chú |
+|---|---|---|---|
+| T2L | **Gemma-2-2B-it** + checkpoint `trained_t2l/gemma_2b_t2l` | — | Paper có kết quả cho Gemma (Bảng 8) |
+| T2L (nâng cao) | Mistral-7B-Instruct-v0.2 + checkpoint Mistral | Mistral 4-bit | README của code: cần GPU > 16GB để chạy cùng T2L |
+| GEPA, task LM | **Qwen3-8B** (như paper) qua vLLM | Qwen3-4B, hoặc Qwen3-8B lượng tử hoá AWQ | Qwen3-8B bf16 khoảng 16GB trọng số, cần khoảng 20–24GB kể cả KV cache |
+| GEPA, reflection LM | Model mạnh qua API (vd. GPT-4.1 mini) | Dùng chính task LM | FAQ của GEPA: reflection LM càng mạnh càng tốt |
 
 ### Kiến trúc
 ```
-             ┌──────────── Web client ─────────────┐
-             │ chọn skill · nhập câu · bảng so sánh │
-             │ · xem trace từng bước                │
-             └───────────────┬──────────────────────┘
-                             │ HTTP
-             ┌───────────────▼──────────────────────────────────────────────┐
-             │ FastAPI                                                       │
-             │  /lopa/predict   : encoder + MLP → Z → LLM nhỏ (freeze)       │
-             │  /bt/run         : chạy DSPy program đã compile (JSON)        │
-             │                    → gọi LLM endpoint (base hoặc + LoRA)      │
-             └───────────────┬───────────────────────────┬──────────────────┘
-                             │                           │ OpenAI-compatible API
-                      LLM nhỏ (HF, freeze)         vLLM (GPU) / Ollama (CPU)
-                                                   backbone 7–8B + LoRA adapter
+                ┌──────────────────────── Web client ─────────────────────────┐
+                │ Tab "LoRA Studio"                │ Tab "Prompt Evolution"    │
+                └───────────────┬──────────────────┴─────────────┬────────────┘
+                                │ HTTP                           │
+                ┌───────────────▼────────────────────────────────▼────────────┐
+                │ FastAPI                                                      │
+                │  /t2l/generate  mô tả → T2L hypernetwork → LoRA (safetensors)│
+                │  /t2l/chat      base | base + LoRA (peft, đổi adapter nóng)  │
+                │  /t2l/eval      bảng so sánh đã tính sẵn + chạy nhanh        │
+                │  /gepa/runs     danh sách lần chạy GEPA/MIPROv2 (JSON log)   │
+                │  /gepa/tree     cây ứng viên + biên Pareto                   │
+                │  /gepa/predict  chạy chương trình với prompt đã tối ưu       │
+                └───────┬──────────────────────────────────────┬───────────────┘
+                        │                                      │ OpenAI-compatible API
+          HF transformers + peft                       vLLM (Qwen3) + API reflection LM
+          Gemma-2-2B + T2L (khoảng 7–9GB)              (khoảng 10–22GB tuỳ model)
 ```
+Hai phần **không cần chạy cùng lúc** trên một GPU: đổi model trong giờ nghỉ, hoặc chạy trên hai máy.
 
 ### Cấu trúc thư mục
 Xem [`app/README.md`](../app/README.md).
 
 ---
 
-## 6. Hạ tầng demo: train trước, khi demo có cần GPU không?
+## 6. Hạ tầng: train trước hay chạy lúc demo?
 
-**Không cần thuê hay host GPU trên cloud.** Phần tốn GPU là *train/tối ưu*, làm **trước** buổi thuyết trình. Khi demo chủ yếu chỉ chạy *inference*.
+**Không cần thuê GPU cloud, và không cần tự train mô hình lớn.**
 
-| Việc | Khi nào | Phần cứng |
-|---|---|---|
-| Train PT, LoRA, LoPA (Phần 1) | Trước | GPU riêng / Kaggle |
-| DSPy tối ưu prompt (hàng nghìn lần gọi LLM) + fine-tune LoRA (Phần 2) | Trước | GPU riêng (7–8B) |
-| Lưu kết quả: checkpoint LoPA, LoRA adapter, program `.json`, bảng kết quả | Trước | — |
-| Demo inference LoPA (model 1.5B, phân loại chỉ sinh 1 token) | Trên sân khấu | **Laptop CPU là đủ**; GPU thì nhanh hơn |
-| Demo inference BetterTogether (7–8B, sinh lời giải dài) | Trên sân khấu | **GPU riêng** của nhóm, chạy local và nối laptop qua mạng LAN hoặc SSH tunnel |
-| "Live training" | Trên sân khấu | Chỉ chạy 50–100 bước cho thấy loss giảm, rồi load checkpoint đã train sẵn |
+| Việc | Khi nào | Phần cứng | Ghi chú |
+|---|---|---|---|
+| Train T2L | **Không làm** | — | Paper: khoảng 5 ngày trên 1 H100 mỗi model. Dùng checkpoint có sẵn |
+| (Mở rộng) Train vài LoRA riêng bằng `peft` trên Gemma-2-2B làm "oracle" | Trước | GPU 16GB | Để có dòng "LoRA riêng" trong bảng so sánh |
+| (Mở rộng) Train T2L **reconstruction** trên 3–9 LoRA nhỏ | Trước hoặc live | GPU phổ thông | Paper: 9 LoRA mất khoảng 10 phút (trên H100); minh hoạ "hypernetwork học nén LoRA" |
+| Sinh LoRA + so sánh trên benchmark con | Trước (tính bảng) + live (vài câu) | GPU 10GB | Sinh LoRA chỉ vài giây |
+| Chạy GEPA và MIPROv2 đầy đủ | **Trước** (vài giờ) | GPU cho task LM + API cho reflection | Lưu log mọi ứng viên, prompt, điểm ra JSON |
+| GEPA "live" | Trên sân khấu | như trên | Ngân sách nhỏ (khoảng 30–50 lần chấm), đủ cho 1–2 vòng suy ngẫm |
 
-Phương án dự phòng (theo thứ tự):
-1. Máy GPU riêng của nhóm chạy server (phương án chính).
-2. Laptop CPU: LoPA chạy bình thường; BetterTogether dùng bản đã merge LoRA và lượng tử hoá GGUF Q4 (khoảng 5GB) chạy bằng Ollama/llama.cpp. Chậm nhưng đủ cho 1–2 câu hỏi demo.
-3. Kết quả đã tính sẵn (bảng, trace) + video quay sẵn.
+**VRAM ước lượng** (phải đo lại ở tuần 2):
 
-Không nên phụ thuộc Colab/Kaggle khi đang thuyết trình (phiên có thể bị ngắt, phải chờ cấp GPU) — chỉ dùng chúng để train.
+| Thành phần | VRAM |
+|---|---|
+| Gemma-2-2B bf16 + gte-large + T2L (M hoặc L) | khoảng 7–9GB |
+| Mistral-7B bf16 + T2L | > 16GB (theo README) |
+| Qwen3-4B qua vLLM | khoảng 10–12GB |
+| Qwen3-8B qua vLLM (bf16) | khoảng 20–24GB |
+| Qwen3-8B AWQ 4-bit qua vLLM | khoảng 8–10GB |
 
-### 6.1 Train LoPA trong 10–20GB VRAM
+**Chi phí API cho reflection LM:** paper chạy GEPA trên 6 benchmark hết khoảng 86 USD với GPT-4.1 mini (ngân sách 1.8K–7K rollout mỗi benchmark). Demo của nhóm dùng ngân sách nhỏ hơn nhiều (vài trăm lần chấm), nên chi phí ước tính vài USD. Cần đặt giới hạn chi tiêu trên tài khoản API.
 
-**Vì sao paper dùng A100?** Thí nghiệm nặng nhất là backbone code 7–8B (DeepSeek-Coder-7B, Llama-3-8B) và baseline **full fine-tuning**: chính FFT bị OOM ở 7B dù có 2 × A100 40GB. Phần GLUE của paper chỉ dùng **RoBERTa-355M**, model nhỏ, nhẹ hơn nhiều.
-
-**Vì sao LoPA nhẹ?** Backbone **freeze**, nên không cần lưu gradient và trạng thái optimizer cho backbone, chỉ cho khoảng 1–6M tham số của LoPA. Nhưng soft prompt nằm ở **input**, nên gradient vẫn phải lan ngược qua **toàn bộ** backbone. Bộ nhớ chủ yếu là: trọng số backbone + activation.
-
-**Ước lượng VRAM khi train** (batch 16, độ dài input ≤ 128 token, có gradient checkpointing). Đây là số ước lượng, **phải đo lại bằng `torch.cuda.max_memory_allocated()`** ở tuần 2:
-
-| Backbone | Độ chính xác | Trọng số | VRAM train ước lượng | Ghi chú |
-|---|---|---|---|---|
-| `Qwen2.5-0.5B` | bf16 | khoảng 1GB | khoảng 3–5GB | Bản nhẹ, chạy được mọi nơi |
-| **`Qwen2.5-1.5B`** | bf16 | khoảng 3GB | **khoảng 6–10GB** | **Đề xuất chính cho demo** |
-| `Qwen2.5-3B` | bf16 | khoảng 6GB | khoảng 10–16GB | Vừa 16–24GB |
-| `Qwen2.5-7B` / `DeepSeek-Coder-6.7B` | **4-bit (NF4)** | khoảng 5GB | khoảng 10–16GB | Nếu muốn gần setup code của paper; backbone lượng tử hoá nên khác paper |
-| *(7–8B bf16)* | bf16 | khoảng 15GB | > 24GB | Không vừa 10–20GB |
-
-Encoder `xlm-roberta-base` (khoảng 280M) và MLP gần như không đáng kể.
-
-**Kỹ thuật giảm bộ nhớ** (theo thứ tự hiệu quả):
-1. **Precompute X′**: encoder freeze (paper cũng thấy fine-tune encoder không giúp), nên tính trước biểu diễn của mọi câu một lần rồi lưu ra đĩa. Khi train không cần load encoder.
-2. **Gradient checkpointing** cho backbone (`model.gradient_checkpointing_enable()`), đổi khoảng 30% thời gian lấy phần lớn bộ nhớ activation.
-3. **Input ngắn**: SST-2 và UIT-VSFC chỉ khoảng 30–60 token; đặt `max_length=128`. CruxEval-O dài hơn (đoạn code), nên dùng batch nhỏ hơn.
-4. **Batch nhỏ + gradient accumulation** (vd. batch 4 × accumulate 4 = batch hiệu dụng 16).
-5. **Lượng tử hoá 4-bit backbone** (bitsandbytes) chỉ khi cần model ≥ 7B. Gradient vẫn lan qua được tới soft prompt, giống cách QLoRA hoạt động.
-6. **Không chạy baseline full fine-tuning**: dùng số của paper để so sánh. LoRA trên 1.5B vẫn vừa khoảng 8–12GB.
-
-**Lưu ý với GPU T4 (Colab/Kaggle, 16GB):** T4 không hỗ trợ bf16. Dùng fp16 autocast nhưng giữ tham số LoPA ở fp32, và theo dõi loss bị NaN.
-
-**Khi demo (chỉ inference):** 1.5B bf16 cần khoảng 3–4GB; chạy được cả trên CPU vì phân loại chỉ sinh 1 token.
+**Phương án dự phòng khi thuyết trình:**
+1. Máy GPU của nhóm chạy server (phương án chính).
+2. Kết quả đã tính sẵn (bảng, log GEPA, cây tiến hoá) được client hiển thị **không cần GPU**.
+3. Video quay sẵn từng bước.

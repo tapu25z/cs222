@@ -4,7 +4,7 @@
 |---|---|
 | Tên đầy đủ | *DSPy: Compiling Declarative Language Model Calls into State-of-the-Art Pipelines* (ICLR 2024). Bản arXiv v1 có tên *…into Self-Improving Pipelines* |
 | Tác giả | Omar Khattab, Arnav Singhvi, Paridhi Maheshwari, Zhiyuan Zhang, Keshav Santhanam, Sri Vardhamanan, Saiful Haq, Ashutosh Sharma, Thomas T. Joshi, Hanna Moazam, Heather Miller, Matei Zaharia, Christopher Potts |
-| Hội nghị | **ICLR 2024** |
+| Hội nghị | **ICLR 2024** — đọc làm nền cho GEPA |
 | Link | [ICLR proceedings](https://proceedings.iclr.cc/paper_files/paper/2024/hash/f1cf02ce09757f57c3b93c0db83181e0-Abstract-Conference.html) · [arXiv 2310.03714](https://arxiv.org/abs/2310.03714) |
 | PDF trong repo | [`dspy-arxiv-2310.03714v1.pdf`](dspy-arxiv-2310.03714v1.pdf). Đây là **bản arXiv v1 (10/2023)**, chưa phải bản ICLR; số liệu có thể khác chút |
 | Code / tài liệu | [stanfordnlp/dspy](https://github.com/stanfordnlp/dspy) · [dspy.ai](https://dspy.ai) |
@@ -45,10 +45,12 @@
 - Compile mất **vài phút tới vài chục phút**.
 - Mã nguồn LangChain (09/2023) có 50 prompt dài hơn 1000 ký tự; **DSPy không có prompt viết tay nào**.
 
-## Liên hệ với BetterTogether
-- BetterTogether dùng **chính** `BootstrapFewShotWithRandomSearch` (tối ưu prompt) và `BootstrapFinetune` (fine-tune) của DSPy.
-- DSPy gốc fine-tune một model **khác, nhỏ hơn** (T5) bằng trace của model lớn (Llama2-13b).
-- BetterTogether: **cùng một model** tự dạy mình, và **xen kẽ** hai bước.
+## Liên hệ với GEPA (paper 2)
+- GEPA là một **optimizer của DSPy**: dùng `dspy.GEPA(metric=..., reflection_lm=...)` rồi `.compile(program, trainset, valset)`, giống mọi teleprompter khác.
+- Các benchmark của GEPA (HotpotQA, HoVer, IFBench, PUPA…) đều là **chương trình DSPy** nhiều module.
+- Baseline chính của GEPA là **MIPROv2**, một optimizer khác của DSPy (tối ưu cả câu lệnh lẫn ví dụ few-shot).
+- Khác biệt: optimizer gốc của DSPy (`BootstrapFewShot`) chọn **ví dụ** từ trace đúng; GEPA **viết lại câu lệnh** bằng cách cho LLM đọc trace và phản hồi chữ.
+- (Cặp paper trước, BetterTogether, cũng dựa trên DSPy: xem [`../reference/previous/bettertogether/`](../reference/previous/bettertogether/).)
 
 ## Lưu ý về phiên bản API
 Code trong paper là API DSPy năm 2023 (`dspy.Retrieve`, field `rationale`, `dspy.settings.trace`…). Thư viện hiện tại đổi nhiều: `dspy.LM`, field `reasoning`, *teleprompter* đổi tên thành *optimizer*… Khi viết code cho app, theo tài liệu tại https://dspy.ai và cố định phiên bản trong `app/requirements.txt`.

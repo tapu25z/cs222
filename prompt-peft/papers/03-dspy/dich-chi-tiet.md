@@ -176,7 +176,7 @@ compiled_rag_via_finetune = finetuning_teleprompter.compile(
     RAG(), teacher=compiled_rag, trainset=unlabeled_questions, target='google/flan-t5-large')
 ```
 
-> 💡 **Liên hệ BetterTogether.** Ở đây teacher (Llama2-13b) và student (T5) là **hai model khác nhau**. BetterTogether hỏi: nếu teacher và student là **cùng một model** thì sao? Đó là "LM tự dạy chính nó".
+> 💡 **Liên hệ BetterTogether** (cặp paper trước, xem `../reference/previous/bettertogether/`). Ở đây teacher (Llama2-13b) và student (T5) là **hai model khác nhau**. BetterTogether hỏi: nếu teacher và student là **cùng một model** thì sao? Đó là "LM tự dạy chính nó".
 
 ---
 

@@ -1,19 +1,19 @@
 # Paper ứng viên từ 2025 trở đi (để so sánh)
 
-> **Quyết định hiện tại: vẫn giữ LoPA (NeurIPS 2024) + BetterTogether (EMNLP 2024)** làm 2 paper chính.
-> Bảng dưới đây là các ứng viên mới hơn đã tìm (11/2026), giữ lại để tham khảo, dùng cho phần "hướng mở rộng" khi thuyết trình, hoặc nếu sau này đổi paper.
+> **Quyết định: nhóm chọn Text-to-LoRA (ICML 2025) + GEPA (ICLR 2026 Oral)** từ bảng này. Tài liệu ở [`../01-text-to-lora/`](../01-text-to-lora/) và [`../02-gepa/`](../02-gepa/).
+> Các paper còn lại giữ để tham khảo, hoặc dùng cho phần "hướng mở rộng" khi thuyết trình (vd. Doc-to-LoRA là bản tiếp theo của Text-to-LoRA).
 
 - Hội nghị đã được xác nhận qua trang chính thức hoặc arXiv.
 - Cột "Code" ghi "?" là chưa kiểm tra được.
 - ★ = mức dễ demo trong 10–20GB VRAM (★★★ là dễ nhất).
-- PDF có sẵn trong thư mục này: `text-to-lora-icml2025.pdf`, `gepa-iclr2026.pdf`.
+- PDF của 2 paper đã chọn nằm trong `../01-text-to-lora/` và `../02-gepa/`.
 
 ## A. Prompt → PEFT: sinh adapter từ chữ hoặc tài liệu, không cần train
 
 | # | Paper | Hội nghị | Ý chính | Code | Demo |
 |---|---|---|---|---|---|
 | 1 | **Doc-to-LoRA: Learning to Instantly Internalize Contexts** | **ICML 2026** | Đọc một tài liệu → sinh LoRA trong một lần forward, model "nhớ" tài liệu mà không cần đưa vào context. Gần hoàn hảo trên needle-in-a-haystack 32K token | Có, kèm checkpoint (Gemma-2-2B) và demo online | ★★★ |
-| 2 | **Text-to-LoRA: Instant Transformer Adaption** | ICML 2025 | Mô tả task bằng chữ → hypernetwork sinh LoRA ngay | Có, kèm checkpoint (Gemma-2-2B, Mistral-7B, Llama-8B) và web UI | ★★★ (có PDF) |
+| 2 | **Text-to-LoRA: Instant Transformer Adaption** | ICML 2025 | Mô tả task bằng chữ → hypernetwork sinh LoRA ngay | Có, kèm checkpoint (Gemma-2-2B, Mistral-7B, Llama-8B) và web UI | ★★★ ✅ đã chọn |
 | 3 | Drag-and-Drop LLMs: Zero-Shot Prompt-to-Weights | NeurIPS 2025 | Vài prompt không nhãn → sinh LoRA, theo tác giả tốn ít hơn tới 12.000 lần so với full fine-tune | Có (trang dự án) | ★★ |
 | 4 | Generative Adapter | ICLR 2025 | Context lúc test → sinh adapter cho model freeze. Cá nhân hoá rẻ hơn 4 lần so với nhét cả lịch sử vào prompt | ? | ★★ |
 | 5 | Transformer²: Self-adaptive LLMs | ICLR 2025 | Chỉ chỉnh singular value của trọng số (SVF, học bằng RL). Chạy 2 lượt: nhận diện task rồi trộn các "expert vector" tương ứng | Có | ★★ |
@@ -22,7 +22,7 @@
 
 | # | Paper | Hội nghị | Ý chính | Code | Demo |
 |---|---|---|---|---|---|
-| 6 | **GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning** | **ICLR 2026, Oral** | LLM tự phân tích các lần chạy rồi tiến hoá prompt. Hơn GRPO (fine-tune bằng RL) trung bình 6 điểm, ít lượt chạy hơn tới 35 lần | `pip install gepa`, có trong DSPy (`dspy.GEPA`) | ★★★ (có PDF) |
+| 6 | **GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning** | **ICLR 2026, Oral** | LLM tự phân tích các lần chạy rồi tiến hoá prompt. Hơn GRPO (fine-tune bằng RL) trung bình 6 điểm, ít lượt chạy hơn tới 35 lần | `pip install gepa`, có trong DSPy (`dspy.GEPA`) | ★★★ ✅ đã chọn |
 | 7 | ACE: Agentic Context Engineering | ICLR 2026 | Context là một "playbook" được cập nhật dần qua sinh, suy ngẫm, chọn lọc. +10.6% với agent | Có | ★★ |
 | 8 | MetaSPO: System Prompt Optimization with Meta-Learning | NeurIPS 2025 | Tối ưu **system prompt** dùng chung cho nhiều task, theo kiểu meta-learning hai tầng | ? | ★★ |
 | 9 | TextGrad: Automatic "Differentiation" via Text | **Nature** 2025 (tạp chí) | "Lan truyền ngược" bằng phản hồi chữ của LLM, API giống PyTorch | `pip install textgrad` | ★★★ |
@@ -60,7 +60,7 @@
 2. **GEPA + Tina**: cùng bài toán suy luận, so trực tiếp **tối ưu prompt** với **LoRA + RL**. Hợp nếu muốn dựng thành một cuộc tranh luận.
 3. **Text-to-LoRA + Doc-to-LoRA**: cùng nhóm tác giả (Sakana), cùng code, nên dễ làm nhất. Nhưng cả hai đều thiên về PEFT; thiếu phần tối ưu prompt chữ.
 
-## Liên hệ với cặp paper đang chọn (gợi ý cho phần "hướng mở rộng")
+## Liên hệ với cặp paper chọn trước đó (LoPA + BetterTogether)
 - **LoPA → Text-to-LoRA / Doc-to-LoRA**: LoPA sinh *soft prompt* theo từng input; T2L/D2L đi xa hơn, sinh cả *LoRA adapter* từ chữ.
 - **BetterTogether → GEPA**: cùng nhóm tác giả DSPy. BetterTogether xen kẽ tối ưu prompt và LoRA; GEPA cho thấy chỉ tối ưu prompt (bằng suy ngẫm) đã có thể thắng fine-tune bằng RL.
 

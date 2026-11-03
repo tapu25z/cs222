@@ -5,8 +5,9 @@ artifacts/**
 !artifacts/.gitkeep
 !artifacts/results/
 !artifacts/results/*.csv
-!artifacts/dspy/
-!artifacts/dspy/*.json
+!artifacts/gepa/
+!artifacts/gepa/**/
+!artifacts/gepa/**/*.json
 
 __pycache__/
 *.pyc
