@@ -164,7 +164,7 @@ Lưu ý: API của DSPy thay đổi khá nhanh giữa các phiên bản (vd. `ds
 
 ## 5. App: "Language-Driven Adaptation Lab"
 
-Một **FastAPI server** + **web client**, 2 tab tương ứng 2 paper, cùng một câu hỏi: *dùng chữ để thích nghi LLM*.
+Một **FastAPI server** + **web client**, 3 tab: một tab cho mỗi paper và một tab **"Đấu trường"** so sánh hai paper trên cùng bài toán (mục 7). Câu hỏi chung: *dùng chữ để thích nghi LLM*.
 
 ### Tab 1 — "LoRA Studio" (Text-to-LoRA)
 Người dùng **gõ mô tả task** → server sinh LoRA bằng T2L (vài giây) → gắn vào model gốc → **chat song song**: model gốc và model + LoRA vừa sinh.
@@ -194,6 +194,9 @@ Chọn một task → xem **prompt tiến hoá** qua từng vòng GEPA: phản h
 | Xem prompt | Diff giữa prompt gốc và prompt sau mỗi vòng, kèm phản hồi đã dẫn tới thay đổi |
 | Chạy prompt tối ưu | Nhập câu hỏi → chạy chương trình với prompt gốc và prompt GEPA |
 
+### Tab 3 — "Đấu trường" (so sánh T2L và GEPA)
+Cùng model gốc, cùng câu hỏi: chạy song song các phương án ở mục 7 và hiện bảng kết quả đã tính sẵn. Chi tiết thí nghiệm ở mục 7.
+
 ### Model
 
 | Phần | Model chính (GPU 16–24GB) | Bản nhẹ | Ghi chú |
@@ -217,6 +220,8 @@ Chọn một task → xem **prompt tiến hoá** qua từng vòng GEPA: phản h
                 │  /gepa/runs     danh sách lần chạy GEPA/MIPROv2 (JSON log)   │
                 │  /gepa/tree     cây ứng viên + biên Pareto                   │
                 │  /gepa/predict  chạy chương trình với prompt đã tối ưu       │
+│  /arena/run     một câu hỏi qua các phương án 1, 4, 5, 6     │
+│  /arena/table   bảng so sánh đã tính sẵn                     │
                 └───────┬──────────────────────────────────────┬───────────────┘
                         │                                      │ OpenAI-compatible API
           HF transformers + peft                       vLLM (Qwen3) + API reflection LM
@@ -258,3 +263,55 @@ Xem [`app/README.md`](../app/README.md).
 1. Máy GPU của nhóm chạy server (phương án chính).
 2. Kết quả đã tính sẵn (bảng, log GEPA, cây tiến hoá) được client hiển thị **không cần GPU**.
 3. Video quay sẵn từng bước.
+
+---
+
+## 7. Đấu trường: so sánh Text-to-LoRA và GEPA trên cùng bài toán
+
+Hai paper không cạnh tranh trực tiếp, nhưng cùng trả lời một câu hỏi: **thích nghi một LLM đã freeze cho task mới bằng ngôn ngữ, với rất ít dữ liệu**. T2L đưa kiến thức vào **trọng số**, GEPA đưa vào **prompt**. Muốn so sánh công bằng thì phải dùng **cùng model gốc, cùng bài toán, cùng tập test**.
+
+### 7.1 Thiết lập
+- **Model gốc chung**: T2L chỉ có checkpoint cho Mistral-7B, Llama-3.1-8B, Gemma-2-2B, nên GEPA chạy trên đúng model đó (qua vLLM).
+  - **Mistral-7B-Instruct-v0.2** (model chính của paper T2L) nếu có GPU khoảng 24GB.
+  - **Gemma-2-2B-it** nếu GPU nhỏ hơn.
+- **Bài toán chính: GSM8K** (toán có lời văn). Cả hai paper đều có bài toán toán học; chấm đúng/sai rõ ràng; hàm phản hồi cho GEPA dễ viết ("đáp án đúng là X, lời giải sai ở bước…").
+- **Bài toán phụ** (bắt buộc nếu dùng Gemma-2-2B): **PIQA** hoặc **HellaSwag**. Lý do: trên Gemma, theo Bảng 8 của paper, T2L gần như không giúp GSM8K (55.6 → 55.1, đã kèm ICL), nhưng giúp rõ PIQA (71.0 → 75.2) và HellaSwag (55.2 → 62.5). Trên Mistral-7B, T2L có giúp GSM8K (40.9 → 45.8).
+- **Tập test**: khoảng 300 câu mỗi bài, seed cố định. GEPA dùng khoảng 100 train + 100–300 val tách riêng khỏi test.
+
+### 7.2 Các phương án
+
+| # | Phương án | Cần dữ liệu task? | Chi phí cho task mới |
+|---|---|---|---|
+| 1 | Model gốc, zero-shot | Không | 0 |
+| 2 | Gốc + **cùng câu mô tả** đưa vào prompt (đối chứng quan trọng nhất cho T2L) | Không | 0 |
+| 3 | 3-shot ICL | 3 ví dụ | Prompt dài hơn |
+| 4 | **T2L**: LoRA sinh từ câu mô tả ở dòng 2 | Không | 1 lần forward, vài giây |
+| 5 | **GEPA**: prompt tối ưu (ngân sách vài trăm rollout) | Khoảng 100 train + val | Rollout + gọi reflection LM |
+| 6 | **T2L + GEPA**: GEPA tối ưu prompt cho model đã gắn LoRA của T2L | Như dòng 5 | Như dòng 5 |
+| 7 | (Tuỳ chọn, làm "trần") LoRA train riêng trên GSM8K bằng `peft` | Hàng nghìn ví dụ | Train vài giờ |
+
+Dòng 6 cho thấy hai cách **bổ sung** cho nhau chứ không loại trừ.
+
+### 7.3 Thước đo
+| Thước đo | Ghi chú |
+|---|---|
+| Accuracy | Trên cùng tập test |
+| Dữ liệu cần | Số ví dụ có nhãn đã dùng |
+| Compute | Thời gian, GPU, số rollout; **tính cả reflection LM của GEPA** |
+| Tiền API | Nếu reflection LM chạy qua API |
+| Độ dài prompt | Số token mỗi câu (ICL và GEPA làm prompt dài ra; T2L thì không) |
+| Thứ tạo ra | LoRA (vài MB, không đọc được) và prompt (vài KB, đọc được) |
+| Dùng được với model đóng | T2L: không (cần trọng số). GEPA: có |
+
+**Chi phí ở hai thời điểm khác nhau**: T2L tốn rất nhiều **một lần** khi train hypernetwork (Sakana đã trả, khoảng 5 ngày H100 mỗi model) nhưng gần như miễn phí cho mỗi task mới. GEPA không tốn gì trước nhưng tốn **cho từng task**. Slide nên ghi cả hai.
+
+### 7.4 Bài toán phụ để thấy mỗi bên mạnh ở đâu (giả thuyết, nhóm tự kiểm chứng)
+- **Chỉ có mô tả, không có dữ liệu**: chỉ T2L làm được, vì GEPA cần ví dụ có nhãn để chấm điểm.
+- **Ràng buộc định dạng chi tiết (kiểu IFBench) hoặc pipeline nhiều bước**: dự đoán GEPA có lợi thế, vì phản hồi chữ chỉ thẳng lỗi và tối ưu được từng module, còn T2L chỉ nhận một câu mô tả chung.
+- **Task tiếng Việt**: T2L train toàn bằng tiếng Anh nên có thể yếu. GEPA không phụ thuộc ngôn ngữ, nhưng vẫn phụ thuộc mức hiểu tiếng Việt của model gốc.
+
+### 7.5 Trình bày (phần "Đấu trường", 14 phút)
+1. Chiếu bảng 7 phương án với kết quả đã tính sẵn.
+2. Chạy live **một câu GSM8K** qua phương án 1, 4, 5, 6 trên tab "Đấu trường", để khán giả thấy cách trả lời thay đổi.
+3. Bảng chi phí và slide "khi nào dùng cách nào".
+

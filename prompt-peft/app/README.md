@@ -2,9 +2,10 @@
 
 > **Trạng thái: chưa implement.** Thư mục này chỉ có khung. Thiết kế đầy đủ: [`../docs/01-chon-paper-va-thiet-ke-app.md`](../docs/01-chon-paper-va-thiet-ke-app.md), mục 5–6.
 
-App gồm 2 tab, tương ứng 2 paper:
+App gồm 3 tab:
 - **Tab 1 — LoRA Studio (Text-to-LoRA)**: gõ mô tả task → sinh LoRA bằng hypernetwork → chat song song model gốc và model + LoRA; bảng so sánh gốc / mô tả trong prompt / 3-shot ICL / T2L; thí nghiệm mô tả tốt và kém; bản đồ t-SNE các LoRA.
 - **Tab 2 — Prompt Evolution (GEPA)**: chọn task (IFBench, HotpotQA) → xem prompt tiến hoá qua từng vòng, phản hồi chữ, điểm theo rollout, cây ứng viên và biên Pareto; so sánh Baseline / MIPROv2 / GEPA.
+- **Tab 3 — Đấu trường**: cùng model gốc và cùng câu hỏi (GSM8K, PIQA/HellaSwag), chạy song song gốc, T2L, GEPA, T2L + GEPA; bảng so sánh 7 phương án và chi phí (thiết kế ở `docs/01`, mục 7).
 
 ## Cấu trúc thư mục
 
@@ -33,20 +34,26 @@ app/
 │   ├── tree.py              # đọc log → cây ứng viên, biên Pareto
 │   └── evaluate.py
 │
+├── arena/                   # [Team So sánh + App]
+│   ├── tasks.py             # GSM8K (+ PIQA/HellaSwag) dùng chung, tập test cố định
+│   ├── run_arena.py         # 7 phương án trên cùng model gốc → CSV
+│   └── cost.py              # thời gian, rollout, token, tiền API
+│
 ├── artifacts/               # kết quả (không commit file lớn, xem .gitignore)
 │   ├── lora/<mô tả>/        # LoRA do T2L sinh
 │   ├── gepa/<task>/         # log GEPA/MIPROv2, chương trình đã tối ưu (.json)
 │   └── results/*.csv        # bảng kết quả dùng cho slide và client
 │
 ├── server/                  # [App] FastAPI
-│   ├── main.py              # /t2l/generate, /t2l/chat, /t2l/eval, /gepa/runs, /gepa/tree, /gepa/predict
+│   ├── main.py              # /t2l/*, /gepa/*, /arena/run, /arena/table
 │   └── llm.py               # HF + peft cho Gemma (đổi adapter nóng); client OpenAI-compatible tới vLLM/API
 │
-├── client/                  # [App] web UI 2 tab
+├── client/                  # [App] web UI 3 tab
 │
 └── notebooks/               # dùng khi live build trên sân khấu
     ├── part1_text_to_lora.ipynb
-    └── part2_gepa.ipynb
+    ├── part2_gepa.ipynb
+    └── part3_arena.ipynb
 ```
 
 Nhãn `[...]` là nhóm phụ trách (xem [`../docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md`](../docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md), mục 4).
