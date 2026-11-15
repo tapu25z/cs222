@@ -165,7 +165,7 @@ Lưu ý: API của DSPy thay đổi khá nhanh giữa các phiên bản (vd. `ds
 ## 5. App, hạ tầng và thí nghiệm so sánh
 
 Đã chuyển sang tài liệu riêng: [`04-thiet-ke-thi-nghiem-va-app.md`](04-thiet-ke-thi-nghiem-va-app.md). Tóm tắt:
-- Chạy **cả hai pipeline trên cùng một model** (đề xuất Llama-3.1-8B-Instruct, vì T2L có checkpoint) và **cùng 5 dataset**: ARC-Challenge, HellaSwag, BoolQ, HumanEval, AIME 2025.
+- Chạy **cả hai pipeline trên cùng một model** (Llama-3.1-8B-Instruct, vì T2L có checkpoint) và **cùng 6 dataset**: ARC-Challenge, HellaSwag, BoolQ, HumanEval, AIME 2025, GSM8K.
 - Một harness đánh giá chung; 6 phương án bắt buộc (gốc, mô tả trong prompt, 3-shot ICL, T2L, GEPA, T2L + GEPA) và 2 phương án mở rộng.
 - App demo 3 tab (LoRA Studio, Prompt Evolution, Đấu trường) đọc kết quả từ harness.
 - Không tự train T2L: dùng checkpoint có sẵn. Paper không ghi thời gian train SFT (Phụ lục H chỉ nói mọi model vừa một GPU H100 80GB).

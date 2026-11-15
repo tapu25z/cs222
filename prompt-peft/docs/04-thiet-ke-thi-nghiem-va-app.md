@@ -10,6 +10,8 @@
 
 Chạy **cả hai pipeline trên cùng một model gốc và cùng một bộ dataset**, rồi so sánh công bằng.
 
+**Đã chốt:** model **Llama-3.1-8B-Instruct**; 6 dataset: **ARC-Challenge, HellaSwag, BoolQ, HumanEval, AIME 2025, GSM8K**; HellaSwag và BoolQ test trên **1.000 câu cố định** (seed cố định).
+
 | Câu hỏi | Trả lời bằng |
 |---|---|
 | **RQ1.** Cùng model, cùng dữ liệu: đưa kiến thức vào trọng số (T2L) hay vào prompt (GEPA) tốt hơn, ở task nào? | Bảng accuracy theo task × phương án |
@@ -24,7 +26,7 @@ Ràng buộc: T2L **chỉ có checkpoint** cho ba model (repo SakanaAI/text-to-l
 
 | Model | Checkpoint T2L | VRAM chạy (bf16, ước lượng) | Ghi chú |
 |---|---|---|---|
-| **Llama-3.1-8B-Instruct** | `trained_t2l/llama_8b_t2l` | ~16GB trọng số → cần GPU ~24GB | **Đề xuất.** Mạnh nhất trong ba; paper T2L có số trên các dataset này (Bảng 7) để đối chiếu |
+| **Llama-3.1-8B-Instruct** | `trained_t2l/llama_8b_t2l` | ~16GB trọng số → cần GPU ~24GB | **Đã chọn.** Mạnh nhất trong ba; paper T2L có số trên các dataset này (Bảng 7) để đối chiếu |
 | Gemma-2-2B-it | `trained_t2l/gemma_2b_t2l` | ~5GB | Dự phòng nếu GPU nhỏ. Paper chạy Gemma **kèm ICL** cho mọi phương án |
 | Mistral-7B-Instruct-v0.2 | `trained_t2l/mistral_7b_t2l` | ~15GB | Model chính của paper T2L, nhưng yếu hơn Llama ở toán và code |
 
@@ -32,13 +34,13 @@ Không dùng Qwen3-8B (model của paper GEPA) vì T2L không có checkpoint cho
 
 **Số tham chiếu** (paper T2L, Bảng 7, Llama-3.1-8B-Instruct; prompt đánh giá của paper, không phải của nhóm):
 
-| | ARC-C | BoolQ | HellaSwag | HumanEval |
-|---|---|---|---|---|
-| Model gốc | 73,3 | 80,4 | 66,6 | 66,5 |
-| 3-shot ICL | 80,7 | 80,0 | 59,3 | 66,5 |
-| Thêm mô tả task vào prompt | 80,2 | 79,9 | 69,8 | 68,3 |
-| Multi-task LoRA | 82,0 | 83,3 | 70,8 | 63,4 |
-| T2L (SFT) L | 82,4 | 84,4 | 72,8 | 64,6 |
+| | ARC-C | BoolQ | HellaSwag | HumanEval | GSM8K |
+|---|---|---|---|---|---|
+| Model gốc | 73,3 | 80,4 | 66,6 | 66,5 | 75,7 |
+| 3-shot ICL | 80,7 | 80,0 | 59,3 | 66,5 | 75,7 |
+| Thêm mô tả task vào prompt | 80,2 | 79,9 | 69,8 | 68,3 | 75,7 |
+| Multi-task LoRA | 82,0 | 83,3 | 70,8 | 63,4 | 77,6 |
+| T2L (SFT) L | 82,4 | 84,4 | 72,8 | 64,6 | 79,1 |
 
 Lưu ý: với Llama, T2L **thấp hơn** model gốc ở HumanEval (64,6 so với 66,5). Đây là điểm đáng xem lại trong thí nghiệm của nhóm.
 
@@ -46,20 +48,21 @@ Lưu ý: với Llama, T2L **thấp hơn** model gốc ở HumanEval (64,6 so v�
 
 ## 3. Bộ dataset chung
 
-**Lưu ý trung thực:** không có dataset nào nằm trong **cả hai** paper. ARC-Challenge, HellaSwag, BoolQ, HumanEval là benchmark của T2L; AIME 2025 là benchmark của GEPA. Bộ năm dataset này **phủ cả hai paper**, nên mỗi phương pháp sẽ được thử ở "sân nhà" và "sân khách".
+**Lưu ý trung thực:** không có dataset nào nằm trong **cả hai** paper. ARC-Challenge, HellaSwag, BoolQ, HumanEval, GSM8K là benchmark của T2L; AIME 2025 là benchmark của GEPA (GEPA có toán nhưng là AIME và LiveBench-Math). Bộ sáu dataset này **phủ cả hai paper**, nên mỗi phương pháp sẽ được thử ở "sân nhà" và "sân khách".
 
 | Dataset | Nguồn (Hugging Face) | Train + val cho GEPA | Test | Metric | Có trong paper |
 |---|---|---|---|---|---|
 | **ARC-Challenge** | `allenai/ai2_arc` (ARC-Challenge) | 150 từ train + 300 từ train/validation | test (1.172 câu) | Accuracy | T2L |
-| **HellaSwag** | `Rowan/hellaswag` | 150 + 300 từ train | validation (test không có nhãn); lấy 1.000 câu cố định seed nếu thiếu thời gian | Accuracy | T2L |
-| **BoolQ** | `google/boolq` | 150 + 300 từ train | validation (3.270 câu, hoặc 1.000 câu cố định seed) | Accuracy | T2L |
+| **HellaSwag** | `Rowan/hellaswag` | 150 + 300 từ train | **1.000 câu cố định** từ validation (test không có nhãn) | Accuracy | T2L |
+| **BoolQ** | `google/boolq` | 150 + 300 từ train | **1.000 câu cố định** từ validation | Accuracy | T2L |
 | **HumanEval** | `openai/openai_humaneval` | **Không có split train** → dùng **MBPP** (train/validation) để GEPA tối ưu | toàn bộ 164 bài | pass@1 (chạy unit test) | T2L |
 | **AIME 2025** | `MathArena/aime_2025` | AIME 2022–2024 (90 bài, chia đôi train/val, như paper GEPA) | 30 bài × 5 lần sinh | Đúng đáp án số nguyên, TB 5 lần | GEPA |
+| **GSM8K** | `openai/gsm8k` (main) | 150 + 300 từ train | toàn bộ test (1.319 câu) | Đúng số cuối cùng | T2L |
 
 Ghi chú:
 - Kích thước train/val 150/300 theo paper GEPA. Ghi lại seed và danh sách id của từng split vào `artifacts/splits/`.
 - **HumanEval**: tối ưu trên MBPP rồi test trên HumanEval là **chuyển dataset** — cần nói rõ khi báo cáo.
-- **AIME 2025 có rủi ro "sàn"**: model 8B instruct không chuyên suy luận thường giải được rất ít bài AIME, nên mọi phương án có thể gần 0. Chỉ có 30 bài, nên 1 bài = 3,3 điểm. **Đề xuất:** giữ AIME làm bài "thử sức", và cân nhắc **thêm GSM8K** (có trong paper T2L, cùng loại toán với GEPA, có 1.319 câu test) để có tín hiệu toán rõ hơn. Cần nhóm quyết định (mục 13).
+- **AIME 2025 có rủi ro "sàn"**: model 8B instruct không chuyên suy luận thường giải được rất ít bài AIME, nên mọi phương án có thể gần 0. Chỉ có 30 bài, nên 1 bài = 3,3 điểm. AIME được giữ làm bài "thử sức"; **GSM8K** (đã thêm) cho tín hiệu toán rõ hơn.
 
 ---
 
@@ -71,9 +74,9 @@ Mọi phương án chạy qua **cùng một harness**, chỉ khác LoRA và/ho�
 |---|---|
 | Phục vụ model | Một server **vLLM** cho model gốc, bật LoRA (`--enable-lora --max-lora-rank 8`); LoRA của T2L đăng ký như một "model name" riêng → đổi LoRA không cần nạp lại model |
 | Chat template | Template gốc của model |
-| Giải mã | Greedy (temperature 0) cho ARC-C, HellaSwag, BoolQ, HumanEval. AIME: temperature 0.6, 5 lần, lấy trung bình (như paper GEPA) |
-| Độ dài sinh tối đa | Trắc nghiệm và BoolQ ~512 token (cho phép suy luận ngắn); HumanEval ~1.024; AIME ~4.096 |
-| Định dạng đề | Trắc nghiệm: câu hỏi + phương án A/B/C/D, yêu cầu kết thúc bằng `Answer: <chữ cái>`. BoolQ: đoạn văn + câu hỏi, trả lời yes/no. HumanEval: chữ ký hàm + docstring → hoàn thành code. AIME: đề → đáp án cuối dạng `### <số>` |
+| Giải mã | Greedy (temperature 0) cho ARC-C, HellaSwag, BoolQ, HumanEval, GSM8K. AIME: temperature 0.6, 5 lần, lấy trung bình (như paper GEPA) |
+| Độ dài sinh tối đa | Trắc nghiệm và BoolQ ~512 token (cho phép suy luận ngắn); HumanEval và GSM8K ~1.024; AIME ~4.096 |
+| Định dạng đề | Trắc nghiệm: câu hỏi + phương án A/B/C/D, yêu cầu kết thúc bằng `Answer: <chữ cái>`. BoolQ: đoạn văn + câu hỏi, trả lời yes/no. HumanEval: chữ ký hàm + docstring → hoàn thành code. AIME và GSM8K: đề → đáp án cuối dạng `### <số>` |
 | Tách đáp án | Một hàm duy nhất cho mỗi dataset, dùng chung cho mọi phương án |
 | Chạy code | Sandbox có timeout cho HumanEval/MBPP (không chạy code sinh ra trực tiếp trên máy chính) |
 | Báo cáo | Accuracy + **khoảng tin cậy 95% bằng bootstrap**; AIME báo cả số bài đúng |
@@ -114,7 +117,7 @@ Mọi phương án chạy qua **cùng một harness**, chỉ khác LoRA và/ho�
 ## 7. Pipeline GEPA (A4, A5)
 
 1. **Chương trình DSPy** cho mỗi dataset, giữ đơn giản và giống nhau:
-   - ARC-C, HellaSwag, BoolQ, AIME: một module `ChainOfThought` (như AIME trong paper GEPA).
+   - ARC-C, HellaSwag, BoolQ, AIME, GSM8K: một module `ChainOfThought` (như AIME trong paper GEPA).
    - HumanEval/MBPP: một module sinh code từ chữ ký hàm + docstring.
 2. **Hàm phản hồi μ_f** (trả điểm + chữ):
 
@@ -123,6 +126,7 @@ Mọi phương án chạy qua **cùng một harness**, chỉ khác LoRA và/ho�
 | ARC-C, HellaSwag | 1/0 | "Đáp án đúng là X; bạn chọn Y." |
 | BoolQ | 1/0 | "Đáp án đúng là yes/no", kèm câu liên quan trong đoạn văn nếu tìm được |
 | AIME | 1/0 | Đáp án đúng; kèm lời giải tham khảo nếu dataset có |
+| GSM8K | 1/0 | Đáp án đúng; kèm lời giải mẫu từng bước (GSM8K có sẵn) |
 | MBPP → HumanEval | tỷ lệ test qua | Test nào sai, thông báo lỗi hoặc traceback (cắt ngắn) |
 
 3. **Cấu hình**: `dspy.GEPA` với minibatch 3, reflection LM là LLM ngoài ở mục 5, ngân sách `max_metric_calls` cố định cho mỗi dataset (đề xuất ~1.000; paper dùng 1.839–7.051 rollout). Lưu log mọi ứng viên, cha mẹ, điểm và prompt.
@@ -133,7 +137,7 @@ Mọi phương án chạy qua **cùng một harness**, chỉ khác LoRA và/ho�
 
 ## 8. Ước lượng khối lượng tính toán
 
-Số lần sinh trên tập test cho mỗi phương án: ARC-C 1.172 + HellaSwag ~1.000 + BoolQ ~1.000 + HumanEval 164 + AIME 150 (30 × 5) ≈ **3.500**. Sáu phương án bắt buộc (A0–A5, với A3 và A5 nhân 3 mô tả) ≈ **25.000–30.000 lần sinh**, cộng **~5.000 rollout tối ưu GEPA** cho 5 dataset (×2 cho A4 và A5).
+Số lần sinh trên tập test cho mỗi phương án: ARC-C 1.172 + HellaSwag 1.000 + BoolQ 1.000 + HumanEval 164 + AIME 150 (30 × 5) + GSM8K 1.319 ≈ **4.800**. Sáu phương án bắt buộc (A0–A5, với A3 và A5 nhân 3 mô tả) ≈ **35.000–40.000 lần sinh**, cộng **~6.000 rollout tối ưu GEPA** cho 6 dataset (×2 cho A4 và A5).
 
 Với vLLM trên một GPU 24GB, khối lượng này cỡ **vài giờ đến khoảng một ngày GPU**, tuỳ độ dài sinh (AIME dài nhất). Đây là ước lượng; **đo throughput thật ở tuần 1** rồi chỉnh kích thước test hoặc ngân sách GEPA. Chi phí API cho reflection LM dự kiến nhỏ hơn mức 86 USD của paper vì ngân sách nhỏ hơn; đặt giới hạn chi tiêu.
 
@@ -153,7 +157,7 @@ Các kết quả này thay cho các ô `[__]` ở slide 5.8 và làm nội dung 
 
 ## 10. App demo (dựng trên harness)
 
-Một **FastAPI server** dùng chung server vLLM ở mục 4, và **web client 3 tab**, cùng bộ 5 dataset:
+Một **FastAPI server** dùng chung server vLLM ở mục 4, và **web client 3 tab**, cùng bộ 6 dataset:
 
 | Tab | Chức năng |
 |---|---|
@@ -172,7 +176,7 @@ Xem `app/README.md`. Tóm tắt:
 ```
 app/
   config.yaml          # model, đường dẫn checkpoint T2L, endpoint vLLM, LLM ngoài, ngân sách GEPA, seed
-  data/                # loader + split cố định cho 5 dataset (+ MBPP, AIME 2022–2024)
+  data/                # loader + split cố định cho 6 dataset (+ MBPP, AIME 2022–2024)
   harness/             # prompt template, tách đáp án, chạy code sandbox, bootstrap CI
   t2l/                 # mô tả, sinh LoRA, đăng ký vLLM
   gepa_lab/            # chương trình DSPy, hàm phản hồi, chạy GEPA, đọc log cây
@@ -189,7 +193,7 @@ app/
 | Tuần | Việc | Team chính |
 |---|---|---|
 | 1 | Chốt model và danh sách dataset; dựng vLLM + LoRA; loader + split; **đo throughput**; tái hiện Bảng 7 trên ARC-C, BoolQ | So sánh + App, T2L |
-| 2 | Harness hoàn chỉnh; A0, A1, A2 trên 5 dataset; mô tả cho 5 dataset | So sánh + App, T2L |
+| 2 | Harness hoàn chỉnh; A0, A1, A2 trên 6 dataset; mô tả cho 6 dataset | So sánh + App, T2L |
 | 3 | A3 (T2L); chương trình DSPy + hàm phản hồi; chạy GEPA thử ngân sách nhỏ | T2L, GEPA |
 | 4 | A4 đầy đủ; A5; (mở rộng) A6, A7 | GEPA, So sánh |
 | 5 | Bảng kết quả, chi phí, hình; app 3 tab; cập nhật slide 5.8 | Cả nhóm |
@@ -199,9 +203,9 @@ app/
 
 ## 13. Cần quyết định trước khi code
 
-- [ ] **Model chung**: Llama-3.1-8B-Instruct (đề xuất) hay Gemma-2-2B-it (nếu GPU nhỏ)?
-- [ ] **AIME 2025**: giữ làm bài thử sức, và có **thêm GSM8K** không?
-- [ ] **Kích thước test** của HellaSwag và BoolQ: dùng đủ validation hay 1.000 câu cố định?
+- [x] **Model chung**: Llama-3.1-8B-Instruct.
+- [x] **AIME 2025**: giữ làm bài thử sức, **thêm GSM8K**.
+- [x] **Kích thước test** của HellaSwag và BoolQ: 1.000 câu cố định.
 - [ ] **LLM ngoài** (viết mô tả + reflection): model nào, ngân sách API bao nhiêu?
 - [ ] **Ngân sách GEPA** mỗi dataset (đề xuất ~1.000 lần chấm)?
 - [ ] Có làm A6 (GEPA tối ưu mô tả cho T2L) và A7 (LoRA oracle) không?

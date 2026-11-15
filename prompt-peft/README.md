@@ -18,7 +18,7 @@ prompt-peft/
 │   ├── 01-chon-paper-va-thiet-ke-app.md
 │   ├── 02-ke-hoach-thuyet-trinh-va-phan-cong.md
 │   ├── 03-noi-dung-thuyet-trinh.md   ← nội dung từng slide: một bài toán, hai lời giải
-│   └── 04-thiet-ke-thi-nghiem-va-app.md ← kế hoạch thí nghiệm + app: cùng model, cùng 5 dataset
+│   └── 04-thiet-ke-thi-nghiem-va-app.md ← kế hoạch thí nghiệm + app: cùng model, cùng 6 dataset
 ├── papers/                    ← tài liệu về paper: link, tóm tắt, dịch/diễn giải
 │   ├── README.md              ← danh sách tất cả paper + link
 │   ├── 01-text-to-lora/       ← paper 1 (PDF + tóm tắt + dịch chi tiết)
