@@ -36,7 +36,7 @@
 - **SFT**: train thẳng trên dữ liệu của 479 task SNI (gradient lan qua LLM gốc tới hypernetwork). **Khái quát sang task mới tốt hơn hẳn.**
 
 **Kết quả chính** (Mistral-7B-Instruct, 10 benchmark: ARC-C/E, BoolQ, GSM8K, HellaSwag, OpenBookQA, PIQA, Winogrande, HumanEval, MBPP).
-- **Nén LoRA**: T2L tái tạo 9 LoRA benchmark đạt **73.3–73.5** điểm trung bình, ngang LoRA riêng từng task (73.3). Có chỗ còn hơn, nhờ nén có mất mát hoạt động như regularization.
+- **Nén LoRA**: T2L tái tạo 9 LoRA benchmark đạt **73.0–73.5** điểm trung bình (tuỳ kiến trúc), ngang LoRA riêng từng task (73.3). Có chỗ còn hơn, nhờ nén có mất mát hoạt động như regularization.
 - **Zero-shot trên task chưa thấy** (Bảng 2, TB 10 task):
 
 | Phương pháp | TB 10 task |
@@ -48,7 +48,8 @@
 | Hyperdecoders (theo từng input) | 67.3 |
 | **T2L (SFT) L** | **67.7** |
 
-- Tổng quát sang model khác: **Llama-3.1-8B** 73.2 → **76.9**; **Gemma-2-2B** (kèm ICL) 60.7 → **66.4**.
+  Phép so sánh cho thấy giá trị của mô tả là **T2L 67,7 so với multi-task LoRA 66,3** (cùng dữ liệu 479 task, không dùng mô tả). Không dùng 67,7 so với 60,6 làm bằng chứng, vì dòng "mô tả trong prompt" không được train gì.
+- Tổng quát sang model khác: **Llama-3.1-8B** 73.2 → **76.9** (multi-task LoRA 76,5); **Gemma-2-2B** (kèm ICL) 60.7 → **66.4** (multi-task LoRA 65,2).
 - Rẻ: sinh LoRA + trả lời tốn **0.86 TFLOPs**/câu, so với **4.18 TFLOPs** khi dùng 3-shot ICL (rẻ hơn hơn 4 lần).
 - **Điều khiển bằng mô tả**: mô tả khớp với task → LoRA tốt; mô tả kém hoặc ngẫu nhiên → kém hơn. Hai mô tả khác nhau cho ra hai cách suy luận khác nhau mà đều đúng (Hình 4).
 
@@ -66,12 +67,12 @@
 | Dữ liệu train | 479 task Super-NaturalInstructions (SNI), mỗi task 128 mô tả do GPT-4o-mini sinh |
 | LR | LoRA riêng 8e-5; T2L SFT 2.5e-5; T2L recon 1e-3 |
 | Phần cứng | Mọi model vừa **1 GPU H100 80GB**. SFT tốn bộ nhớ hơn nhiều vì phải lan gradient qua LLM; **reconstruction chạy được trên GPU phổ thông** |
-| Train T2L SFT đầy đủ | README của code: khoảng **5 ngày trên 1 H100** mỗi model → **nhóm không tự train, dùng checkpoint có sẵn** |
+| Train T2L SFT đầy đủ | **Paper không ghi thời gian** (Phụ lục H chỉ nói mọi model vừa 1 GPU H100 80GB). README của repo code ước khoảng 5 ngày trên 1 H100 mỗi model — nguồn ngoài paper. Nhóm **không tự train**, dùng checkpoint có sẵn |
 | Chạy demo | README: cần GPU **> 16GB** để chạy cùng lúc Mistral-7B và T2L; với **Gemma-2-2B** dùng GPU nhỏ hơn được |
 
 ## Điểm cần nhấn khi thuyết trình
 1. **Hình 1 + Hình 2**: "gõ một câu mô tả → có ngay LoRA". Đây là cầu nối trực tiếp giữa **Prompting** (đầu vào là chữ) và **PEFT** (đầu ra là LoRA).
-2. **Bảng 2**: T2L hơn multi-task LoRA và ICL mà không cần dữ liệu của task mới.
+2. **Bảng 2**: T2L hơn multi-task LoRA (67,7 so với 66,3 — đây là giá trị thật của mô tả) và hơn ICL mà không cần dữ liệu của task mới.
 3. **Hình 4 (GSM8K)**: mô tả "solve this task please" → sai; mô tả chi tiết → đúng. Đây là bằng chứng "viết mô tả tốt = LoRA tốt", tức prompting vẫn quan trọng.
 4. **Hình 5 (t-SNE)**: LoRA của các task giống nhau nằm gần nhau (MBPP cạnh HumanEval).
 5. **Reconstruction vs SFT** (Bảng 6 + Phụ lục D): các LoRA làm cùng việc **không nằm gần nhau** trong không gian trọng số, nên học "bắt chước LoRA" không khái quát được. Đây là một kết luận thú vị để thảo luận.

@@ -1,67 +1,54 @@
-# App: "Language-Driven Adaptation Lab"
+# App và thí nghiệm: Text-to-LoRA vs GEPA
 
-> **Trạng thái: chưa implement.** Thư mục này chỉ có khung. Thiết kế đầy đủ: [`../docs/01-chon-paper-va-thiet-ke-app.md`](../docs/01-chon-paper-va-thiet-ke-app.md), mục 5–6.
+> **Trạng thái: chưa implement.** Kế hoạch đầy đủ: [`../docs/04-thiet-ke-thi-nghiem-va-app.md`](../docs/04-thiet-ke-thi-nghiem-va-app.md).
 
-App gồm 3 tab:
-- **Tab 1 — LoRA Studio (Text-to-LoRA)**: gõ mô tả task → sinh LoRA bằng hypernetwork → chat song song model gốc và model + LoRA; bảng so sánh gốc / mô tả trong prompt / 3-shot ICL / T2L; thí nghiệm mô tả tốt và kém; bản đồ t-SNE các LoRA.
-- **Tab 2 — Prompt Evolution (GEPA)**: chọn task (IFBench, HotpotQA) → xem prompt tiến hoá qua từng vòng, phản hồi chữ, điểm theo rollout, cây ứng viên và biên Pareto; so sánh Baseline / MIPROv2 / GEPA.
-- **Tab 3 — Đấu trường**: cùng model gốc và cùng câu hỏi (GSM8K, PIQA/HellaSwag), chạy song song gốc, T2L, GEPA, T2L + GEPA; bảng so sánh 7 phương án và chi phí (thiết kế ở `docs/01`, mục 7).
+Chạy cả hai pipeline trên **cùng một model** (đề xuất Llama-3.1-8B-Instruct) và **cùng 5 dataset**: ARC-Challenge, HellaSwag, BoolQ, HumanEval, AIME 2025. Kết quả nạp vào một app demo 3 tab (LoRA Studio, Prompt Evolution, Đấu trường).
 
 ## Cấu trúc thư mục
 
 ```
 app/
 ├── README.md
-├── config.yaml              # model, đường dẫn checkpoint, endpoint LLM, ngân sách GEPA
-├── requirements.txt         # cố định phiên bản (dspy, gepa, peft, transformers, vllm)
+├── config.yaml              # model, checkpoint T2L, endpoint vLLM, LLM ngoài, ngân sách GEPA, seed
+├── requirements.txt         # cố định phiên bản: vllm, dspy, gepa, peft, transformers, datasets
 │
-├── data/                    # [Cả hai team] script tải và chia dữ liệu (không commit dữ liệu thô)
-│   ├── benchmarks_t2l.py    # tập con GSM8K, ARC-Easy, BoolQ, PIQA (seed cố định)
-│   ├── ifbench.py           # IF-RLVR train/val + IFBench test (như paper GEPA)
-│   └── hotpotqa.py          # kèm BM25 index trên các đoạn văn của dataset
+├── data/                    # [So sánh + App]
+│   ├── load.py              # ARC-C, HellaSwag, BoolQ, HumanEval, AIME 2025 (+ MBPP, AIME 2022–2024)
+│   └── splits.py            # chia train/val/test cố định seed → artifacts/splits/
+│
+├── harness/                 # [So sánh + App] dùng chung cho MỌI phương án
+│   ├── prompts.py           # template từng dataset (trắc nghiệm, yes/no, code, AIME)
+│   ├── extract.py           # tách đáp án, một hàm cho mỗi dataset
+│   ├── sandbox.py           # chạy unit test HumanEval/MBPP có timeout, không mạng
+│   ├── evaluate.py          # chạy một phương án trên một dataset → CSV
+│   └── stats.py             # bootstrap CI
 │
 ├── t2l/                     # [Team T2L]
-│   ├── setup_t2l.md         # cách cài repo SakanaAI/text-to-lora, tải checkpoint, commit đã dùng
-│   ├── generate.py          # mô tả → LoRA (gọi hypernetwork), lưu adapter
-│   ├── evaluate.py          # gốc / mô tả / ICL / T2L (+ LoRA oracle nếu có) → CSV
-│   ├── descriptions.py      # bộ mô tả: chi tiết, kém, ngẫu nhiên, tiếng Việt
-│   └── tsne.py              # embedding LoRA → t-SNE
+│   ├── setup_t2l.md         # cài repo SakanaAI/text-to-lora, tải checkpoint, commit đã dùng
+│   ├── descriptions.py      # lấy mô tả có sẵn / sinh bằng LLM ngoài (prompt Phụ lục L)
+│   ├── generate.py          # mô tả → adapter PEFT
+│   └── register_vllm.py     # đăng ký LoRA vào vLLM
 │
 ├── gepa_lab/                # [Team GEPA]
-│   ├── programs.py          # chương trình DSPy: IFBench 2 bước, HotpotQA 2 hop
-│   ├── feedback.py          # metric + hàm phản hồi μ_f (trả điểm + chữ)
-│   ├── optimize.py          # --optimizer {baseline, miprov2, gepa} --budget N
-│   ├── tree.py              # đọc log → cây ứng viên, biên Pareto
-│   └── evaluate.py
+│   ├── programs.py          # chương trình DSPy cho 5 dataset
+│   ├── feedback.py          # metric + hàm phản hồi μ_f
+│   ├── optimize.py          # chạy GEPA (model gốc hoặc model + LoRA)
+│   └── tree.py              # đọc log → cây ứng viên, biên Pareto, đường cong
 │
-├── arena/                   # [Team So sánh + App]
-│   ├── tasks.py             # GSM8K (+ PIQA/HellaSwag) dùng chung, tập test cố định
-│   ├── run_arena.py         # 7 phương án trên cùng model gốc → CSV
-│   └── cost.py              # thời gian, rollout, token, tiền API
+├── experiments/             # [So sánh + App]
+│   └── run_arms.py          # A0–A7 trên 5 dataset → artifacts/results/*.csv
 │
-├── artifacts/               # kết quả (không commit file lớn, xem .gitignore)
-│   ├── lora/<mô tả>/        # LoRA do T2L sinh
-│   ├── gepa/<task>/         # log GEPA/MIPROv2, chương trình đã tối ưu (.json)
-│   └── results/*.csv        # bảng kết quả dùng cho slide và client
-│
-├── server/                  # [App] FastAPI
-│   ├── main.py              # /t2l/*, /gepa/*, /arena/run, /arena/table
-│   └── llm.py               # HF + peft cho Gemma (đổi adapter nóng); client OpenAI-compatible tới vLLM/API
-│
+├── artifacts/               # splits, descriptions, lora, gepa, results (file lớn không commit)
+├── server/                  # [App] FastAPI: /t2l/*, /gepa/*, /arena/*
 ├── client/                  # [App] web UI 3 tab
-│
-└── notebooks/               # dùng khi live build trên sân khấu
-    ├── part1_text_to_lora.ipynb
-    ├── part2_gepa.ipynb
-    └── part3_arena.ipynb
+└── notebooks/               # part1_t2l.ipynb, part2_gepa.ipynb, part3_arena.ipynb
 ```
 
-Nhãn `[...]` là nhóm phụ trách (xem [`../docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md`](../docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md), mục 4).
+Nhãn `[...]` là team phụ trách (xem `../docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md`).
 
 ## Quy ước
-- Mọi tham số (model, checkpoint, endpoint, ngân sách) đặt trong `config.yaml`, không hard-code. Có 2 profile: `gpu` (Gemma-2-2B + Qwen3-8B) và `light` (Qwen3-4B hoặc bản lượng tử hoá).
-- API key (cho reflection LM) đặt trong `.env`, **không commit**.
-- Seed cố định cho việc chia dữ liệu và chạy optimizer.
-- Mỗi lần đánh giá ghi thêm một dòng vào `artifacts/results/*.csv`: task, phương pháp, model, ngân sách hoặc số tham số, metric, thời gian.
-- Notebook chỉ **gọi** code trong `t2l/`, `gepa_lab/`, không chứa logic riêng.
-- Artifact lớn lưu ở Google Drive hoặc Hugging Face Hub; trong repo chỉ giữ script tải về.
+- Mọi tham số trong `config.yaml`; API key trong `.env` (**không commit**).
+- Mọi phương án chạy qua `harness/`; không trộn số từ script đánh giá khác.
+- Seed cố định cho split, sinh mô tả, GEPA; lưu id của từng split.
+- Mỗi lần đánh giá ghi một dòng CSV: dataset, phương án, model, mô tả hoặc prompt id, metric, CI, số dữ liệu có nhãn dùng, GPU-giờ, rollout, tiền API.
+- Notebook chỉ gọi code trong các thư mục trên, không chứa logic riêng.

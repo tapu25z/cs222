@@ -17,7 +17,8 @@ prompt-peft/
 ├── docs/                      ← thiết kế và kế hoạch
 │   ├── 01-chon-paper-va-thiet-ke-app.md
 │   ├── 02-ke-hoach-thuyet-trinh-va-phan-cong.md
-│   └── 03-noi-dung-thuyet-trinh.md   ← nội dung từng slide: một bài toán, hai lời giải
+│   ├── 03-noi-dung-thuyet-trinh.md   ← nội dung từng slide: một bài toán, hai lời giải
+│   └── 04-thiet-ke-thi-nghiem-va-app.md ← kế hoạch thí nghiệm + app: cùng model, cùng 5 dataset
 ├── papers/                    ← tài liệu về paper: link, tóm tắt, dịch/diễn giải
 │   ├── README.md              ← danh sách tất cả paper + link
 │   ├── 01-text-to-lora/       ← paper 1 (PDF + tóm tắt + dịch chi tiết)
@@ -38,4 +39,4 @@ prompt-peft/
 3. [`docs/03-noi-dung-thuyet-trinh.md`](docs/03-noi-dung-thuyet-trinh.md): nội dung thuyết trình theo từng slide.
 4. Team Text-to-LoRA: [`papers/01-text-to-lora/`](papers/01-text-to-lora/).
 5. Team GEPA: [`papers/03-dspy/`](papers/03-dspy/) trước, rồi [`papers/02-gepa/`](papers/02-gepa/).
-6. Người làm code: [`app/README.md`](app/README.md).
+6. Người làm code: [`docs/04-thiet-ke-thi-nghiem-va-app.md`](docs/04-thiet-ke-thi-nghiem-va-app.md) rồi [`app/README.md`](app/README.md).

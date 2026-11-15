@@ -30,7 +30,7 @@ Người 3 nói xen giữa các phần của Người 1 và Người 2, nên kh�
 | 1:33–1:55 | 22 | **Paper GEPA** | RL cần hàng chục nghìn rollout → suy ngẫm bằng ngôn ngữ → vòng tiến hoá (Hình 3, Thuật toán 1) → meta-prompt (Phụ lục C) → Pareto (Hình 4, Bảng 3) → kết quả (Hình 1, Bảng 1, 2) | Người 2 |
 | 1:55–2:23 | 28 | **Live build GEPA** | 6 bước, mục 3.2 | Người 2 |
 | 2:23–2:33 | 10 | **Kết quả GEPA** | Bảng Baseline / MIPROv2 / GEPA của nhóm, đường cong theo rollout, cây tiến hoá, prompt trước và sau | Người 3 |
-| 2:33–2:47 | 14 | **Đấu trường** | So sánh T2L và GEPA trên cùng bài toán (file 01, mục 7): bảng 7 phương án, chạy live một câu GSM8K, bảng chi phí | Người 3 (Người 1, 2 bấm demo phần của mình) |
+| 2:33–2:47 | 14 | **Đấu trường** | So sánh T2L và GEPA trên cùng bài toán (file 04): bảng 7 phương án, chạy live một câu GSM8K, bảng chi phí | Người 3 (Người 1, 2 bấm demo phần của mình) |
 | 2:47–3:00 | 13 | **Kết luận + Q&A** | Slide "khi nào dùng cách nào" (mục 4), hạn chế, hướng mở rộng (Doc-to-LoRA, ACE…); Q&A | Người 3 điều phối, cả 3 trả lời |
 
 Tổng: 8 + 25 + 30 + 10 + 10 + 10 + 22 + 28 + 10 + 14 + 13 = **180 phút**.
@@ -66,7 +66,7 @@ Tổng: 8 + 25 + 30 + 10 + 10 + 10 + 22 + 28 + 10 + 14 + 13 = **180 phút**.
 Nguyên tắc demo:
 - Mọi kết quả nặng (bảng benchmark, lần chạy GEPA/MIPROv2 đầy đủ, bảng Đấu trường) **tính trước**; trên sân khấu chỉ chạy phần nhẹ.
 - Mỗi người thuyết trình có **một người hỗ trợ kỹ thuật ngồi cạnh máy** (không nói), sẵn sàng chuyển sang kết quả tính sẵn hoặc video nếu demo lỗi.
-- Có **video quay sẵn** từng bước. Hạ tầng: xem file 01, mục 6.
+- Có **video quay sẵn** từng bước. Hạ tầng và thí nghiệm: xem `04-thiet-ke-thi-nghiem-va-app.md`.
 
 ---
 

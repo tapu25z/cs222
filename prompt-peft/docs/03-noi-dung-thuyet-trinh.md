@@ -21,7 +21,7 @@
 | 6 | Kết luận + Q&A | Cả 3 | 15' |
 | | **Tổng** | | **180'** |
 
-Khoảng 45 slide. Phần 2 và 3 dùng **cùng khung slide** (cùng thứ tự, cùng kiểu hình) để khán giả dễ so sánh.
+Khoảng 64 slide (sau khi thêm các hộp kiến thức nền ở Phần 2). Phần 2 và 3 dùng **cùng khung slide** (cùng thứ tự, cùng kiểu hình) để khán giả dễ so sánh.
 
 ---
 
@@ -72,76 +72,75 @@ Ràng buộc: rất ít dữ liệu và compute cho task mới
 
 ## Phần 2 — Lời giải 1: Text-to-LoRA (Người 1, 45')
 
-### 2A. Ý tưởng (10')
+> Bản cập nhật: thêm **"hộp kiến thức nền"** (slide 2.4, 2.6, 2.7, 2.9, 2.14), mỗi hộp gồm ba ý — paper gốc làm gì, vì sao T2L chọn nó, nó hơn phương án thay thế ở đâu. Nếu thiếu giờ, đưa 2.7 và 2.9 vào phần dự phòng cho Q&A; **không cắt 2.4 và 2.14**.
 
-**Slide 2.1 — Vấn đề cụ thể.** Mỗi task một LoRA → hàng trăm adapter, không chia sẻ kiến thức. Paper hỏi hai câu:
-1. Có thể nén hàng trăm LoRA vào **một mạng** không?
-2. Có thể **sinh LoRA cho task chưa thấy chỉ từ mô tả bằng chữ** không?
+### 2A. Ý tưởng và nền tảng (12')
 
-**Slide 2.2 — Trực giác.** Các LoRA khác nhau "có chung một cơ chế thích nghi". Nếu học được cơ chế đó thì task mới chỉ cần **nói** cho mạng biết task là gì. Ví von: thay vì may đo từng bộ đồ (train từng LoRA), ta có **một máy may tự động** nhận mô tả "áo sơ mi công sở, cỡ M".
+**Slide 2.1 — Vấn đề cụ thể (2').** Mỗi task một LoRA → hàng trăm adapter, mỗi cái cần dataset riêng, chỉnh hyperparameter riêng, không chia sẻ kiến thức. Hai câu hỏi của paper: (1) nén hàng trăm LoRA vào một mạng được không; (2) sinh LoRA cho task chưa thấy chỉ từ mô tả bằng chữ được không.
 
-**Slide 2.3 — Hypernetwork là gì.** Mạng sinh **trọng số cho mạng khác**: `W_l = h_θ(φ_l)`. Ở đây: sinh A, B của LoRA cho từng module, từng layer.
+**Slide 2.2 — Các cách làm trước đó và chỗ hổng (3').**
+
+| Hướng | Đại diện | Làm gì | Hổng ở đâu |
+|---|---|---|---|
+| Nén LoRA | Compress-then-Serve (Brüel-Gabrielsson 2024), VeRA (Kopiczko 2024) | Dùng SVD hoặc ma trận chung để giảm dung lượng | Chỉ nén LoRA đã có, không sinh cho task mới |
+| Trộn hoặc chọn LoRA | Arrow Routing (Ostapenko 2024) | Chọn LoRA phù hợp trong thư viện | Bị giới hạn trong thư viện |
+| Hypernetwork dùng ID task | Mahabadi 2021, He 2022 | Sinh adapter từ vector ID học được | Task mới chưa có ID → không zero-shot |
+| Hypernetwork dùng input | Hyperdecoders (Ivison & Peters 2022) | Sinh adapter từ từng câu hỏi | Sinh lại mỗi câu nên tốn; người dùng không điều khiển được |
+
+Câu chuyển ý: "T2L lấp chỗ trống: sinh LoRA mới, cho task mới, từ một câu mô tả người dùng tự viết trong vài giây."
+
+**Slide 2.3 — Trực giác (2').** Giả thuyết: các LoRA khác nhau có chung một cơ chế thích nghi; học được cơ chế đó thì task mới chỉ cần mô tả. Ví von máy may.
+
+**Slide 2.4 — Hộp kiến thức: Hypernetwork (5', quan trọng nhất).**
+- *Paper gốc:* HyperNetworks (Ha, Dai, Le, 2016), `W_l = h_θ(z_l)`. Static (CNN: mỗi lớp một vector z_l → sinh kernel; ít tham số hơn nhiều, độ chính xác gần bằng) và dynamic (HyperLSTM: trọng số đổi theo từng bước). Ý cốt lõi: mã hoá gián tiếp.
+- *Vì sao T2L chọn:* output là số thực (trọng số); z_l → [mô tả task, module, lớp]; nhỏ (5–55M so với 7B).
+- *Hơn phương án khác:* fine-tune cần dữ liệu và thời gian; chọn từ thư viện bị giới hạn; hypernetwork sinh LoRA mới trong một forward.
 
 ### 2B. Method (17')
 
-**Slide 2.4 — Công thức cốt lõi** (Hình 2 của paper):
-```
-ΔW_{m,l} = h_θ( concat[ f(z), E[m], E[l] ] )
-z: mô tả task bằng chữ     f: gte-large-en-v1.5 (embedding câu)
-E[m]: embedding loại module (q_proj, v_proj)    E[l]: embedding layer
-```
-Gộp mọi (m, l) vào một batch → **cả LoRA sinh trong một lần forward**.
+**Slide 2.5 — Công thức cốt lõi (3').** `ΔW_{m,l} = h_θ(concat[f(z), E[m], E[l]])`. Phụ lục F: f(z) 1024 chiều → linear còn 64 chiều; E[m], E[l] mỗi cái 32 chiều; gộp → các khối MLP có residual → linear head. Mọi (m, l) gộp vào một batch → một lần forward.
 
-**Slide 2.5 — Ba kích thước L / M / S.** Khác nhau ở head output: L sinh A và B cùng lúc (55M tham số), M dùng chung head cho A hoặc B (34M), S sinh từng rank một (5M). So sánh: một LoRA rank 8 (q, v) của Mistral-7B có 3.4M tham số.
+**Slide 2.6 — Hộp kiến thức: vì sao output là LoRA (2').** LoRA gốc (Hu et al., 2022): `h = W₀x + BᵀAx`, khởi tạo B = 0. W một lớp ~16,8M số, cặp LoRA rank 8 ~65k số. Không sinh prefix như Gisting: prefix chỉ tác động qua attention, LoRA sửa trọng số nhiều lớp và gộp được vào W₀. Có sẵn thư viện LoRA công khai.
 
-**Slide 2.6 — Hai cách train.**
-- **Reconstruction**: bắt chước thư viện LoRA có sẵn, loss L1. Rẻ (9 LoRA khoảng 10 phút).
-- **SFT**: train thẳng trên dữ liệu của 479 task SNI, mỗi task 128 mô tả do GPT-4o-mini viết. Đắt (cần lan gradient qua LLM gốc), nhưng **khái quát tốt hơn**.
+**Slide 2.7 — Hộp kiến thức: text encoder và embedding vị trí (2', có thể để dự phòng).** gte-large-en-v1.5 (Alibaba, Li et al. 2023), CLS 1024 chiều, ~0,029 TFLOPs mỗi mô tả. Encoder riêng: rẻ, tách khỏi base model (HyperTuning, HINT phải gắn với base model). Bảng 4: Mistral làm encoder 65,6 so với gte 65,9. E[m], E[l] giống positional embedding (cách hiểu của nhóm: để mạng tự học các lớp gần nhau cần LoRA gần giống).
 
-**Slide 2.7 — Vì sao reconstruction không khái quát** (Phụ lục D, slide "bất ngờ"): các LoRA **làm cùng việc lại không nằm gần nhau** trong không gian trọng số (tương quan ≈ 0). Bắt chước từng LoRA thì không học được "quy luật"; SFT học thẳng hành vi nên tránh được.
+**Slide 2.8 — Ba kích thước L / M / S (3').** Head nối thẳng ra 3,4M số → ~1,7 tỷ tham số (512 × 3,4M), nên chia nhỏ: L sinh cả A và B (55M), M sinh A hoặc B + embedding A/B 128 chiều (34M), S sinh từng hàng + embedding rank (5M). Head nhỏ thì chia sẻ mạnh hơn nhưng dung lượng thấp hơn; Bảng 3: S bão hoà khi tăng lên 479 task.
 
-**Slide 2.8 — Quay lại câu hỏi cừu** (Hình 4). Cùng model Mistral-7B, chỉ đổi LoRA:
-- Gốc → 240 ✗
-- LoRA từ mô tả "solve this task please" → 240 ✗
-- LoRA từ mô tả "This task challenges your problem-solving abilities through mathematical reasoning…" → **260 ✓**
-- LoRA từ mô tả "Use your programming skill to think algorithmically…" → **260 ✓**, cách giải khác
+**Slide 2.9 — Hộp kiến thức: Bias-HyperInit (1', dự phòng).** Beck et al. (2023), meta-RL: weight head = 0, bias khớp khởi tạo lớp đích. Trong T2L: bias head A ~ U(−1/d, 1/d), head B = 0 → ban đầu sinh LoRA chuẩn ΔW = 0. Không có thì train không ổn định, thường thất bại (Phụ lục G).
 
-Ý người nói: *chất lượng câu mô tả quyết định chất lượng LoRA. Prompting vẫn quan trọng, chỉ là nó được "biên dịch" thành trọng số.*
+**Slide 2.10 — Hai cách train (3').** Reconstruction: loss L1 (thực tế dự đoán z-score); 9 LoRA ~10 phút, 479 LoRA ~10 giờ; chạy được trên GPU phổ thông. SFT: gắn LoRA sinh ra vào LLM đóng băng, train trên 479 task SNI; tốn bộ nhớ hơn nhưng tổng quát tốt hơn. **Paper không ghi thời gian train SFT** (Phụ lục H chỉ nói mọi model vừa một H100 80GB). Hộp SNI: hơn 1600 task; T2L dùng 500 → bỏ 10 trùng benchmark + 11 validation → 479; mô tả GPT-4o-mini (128 mỗi task) 67,7 so với định nghĩa SNI 66,5 (Bảng 9).
 
-**[demo tuỳ chọn]** Gõ mô tả → sinh LoRA → hỏi lại câu cừu.
+**Slide 2.11 — Vì sao reconstruction không tổng quát hoá (2').** Phụ lục D: trong không gian A, B tương quan ≈ 0. Phụ lục K: trong ΔW = BᵀA có tương quan dương (0,17–0,38) nhưng reconstruct trong ΔW vẫn không thắng. SFT 66,3 so với reconstruction 61,8 (Bảng 6).
 
-### 2C. Evaluation (18')
+**Slide 2.12 — Quay lại bài toán cừu (Hình 4) (1').** Gốc 240 sai; "solve this task please" 240 sai; mô tả toán 260 đúng; mô tả lập trình 260 đúng, cách giải khác. [demo tuỳ chọn]
 
-**Slide 2.9 — Thiết lập.** Model chính Mistral-7B-Instruct (thêm Llama-3.1-8B, Gemma-2-2B). 10 benchmark: ARC-C/E, BoolQ, GSM8K, HellaSwag, OpenBookQA, PIQA, Winogrande, HumanEval, MBPP. Đã loại 10 task SNI trùng với benchmark. Mỗi kết quả T2L là trung bình 3 mô tả.
+### 2C. Evaluation (16')
 
-**Slide 2.10 — Câu hỏi 1: nén được không?** (Bảng 1) T2L tái tạo 9 LoRA đạt 73.3–73.5 điểm TB, ngang LoRA riêng (73.3); có chỗ còn hơn nhờ nén có mất mát hoạt động như regularization.
+**Slide 2.13 — Thiết lập (2').** Mistral-7B-Instruct (thêm Llama-3.1-8B, Gemma-2-2B); LoRA rank 8 trên q_proj, v_proj; 10 benchmark; T2L = TB 3 mô tả. Lưu ý trung thực: benchmark chủ yếu là trắc nghiệm, khá giống task train; code không có trong dữ liệu train.
 
-**Slide 2.11 — Câu hỏi 2: zero-shot trên task chưa thấy** (Bảng 2, TB 10 task):
+**Slide 2.14 — Hộp kiến thức: các baseline (4', không cắt; dựng thành hai slide cùng số).**
 
-| Phương pháp | TB |
-|---|---|
-| Mistral-7B gốc | 55.8 |
-| + mô tả task trong prompt | 60.6 |
-| + 3-shot ICL | 61.0 |
-| Multi-task LoRA | 66.3 |
-| Hyperdecoders | 67.3 |
-| **T2L (SFT) L** | **67.7** |
+| Baseline | Paper gốc làm gì | Vì sao được chọn | T2L hơn ở đâu |
+|---|---|---|---|
+| Prepend mô tả / 3-shot ICL (Brown 2020) | Đưa mô tả hoặc ví dụ vào prompt | Mốc "không thích nghi trọng số" | 67,7 so với 61,0; rẻ hơn ICL hơn 4 lần FLOPs |
+| Multi-task LoRA | Một LoRA train trên cả 479 task | Cùng dữ liệu, không có mô tả — đối chứng sạch nhất | **67,7 so với 66,3**: giá trị của thích nghi theo mô tả |
+| Arrow Routing (Ostapenko 2024) | Vector đại diện từ SVD của ΔW, mỗi token chọn/trộn LoRA | Mạnh nhất của hướng chọn/trộn, zero-shot | 73,9 so với 70,7 trên 8 task — chỉ so gián tiếp |
+| Hyperdecoders (Ivison & Peters 2022) | Sinh adapter theo từng câu | Gần T2L nhất; tác giả cài lại bằng kiến trúc T2L | Điểm gần bằng (67,7 so với 67,3), nhưng sinh một lần cho cả task, gộp được, điều khiển bằng mô tả |
+| Task-specific LoRA (oracle) | Train riêng trên dữ liệu benchmark | Trần trên | T2L chưa bằng: 73,9 so với 75,8 trên 8 task |
 
-Nhấn: dòng "mô tả trong prompt" là đối chứng quan trọng. **Cùng một câu mô tả**, đưa vào trọng số (67.7) tốt hơn hẳn đưa vào prompt (60.6).
+Related work khác: HyperTuning (Phang 2023), HINT (Ivison 2023) dùng T5/BART và gắn encoder với base model; HyperTuning và Lv et al. (2024) cần few-shot. T2L chỉ cần mô tả.
 
-**Slide 2.12 — Tổng quát sang model khác** (Bảng 7, 8): Llama-3.1-8B 73.2 → 76.9; Gemma-2-2B (kèm ICL) 60.7 → 66.4. Lưu ý trung thực: trên Gemma, GSM8K gần như không đổi (55.6 → 55.1).
+**Slide 2.15 — Câu hỏi 1: nén được không? (Bảng 1) (2').** T2L tái tạo 9 LoRA đạt **73,0–73,5** (tuỳ kiến trúc), ngang LoRA riêng 73,3. Có chỗ còn hơn (PIQA, Winogrande): nén có mất mát như regularization. Lưu ý: "LoRA gốc thấp hơn cả base model" chỉ đúng với PIQA (69,9 so với 72,8); với Winogrande LoRA gốc 51,1 vẫn cao hơn base 45,0.
 
-**Slide 2.13 — Ablation chọn lọc.**
-- Mô tả khớp task: 72–73 điểm; mô tả của task khác: 51.4; chuỗi ngẫu nhiên: 63.5 (Bảng 5).
-- SFT 66.3 so với reconstruction 61.8 (Bảng 6).
-- Thêm task train + thêm compute → tốt hơn (Bảng 3).
-- t-SNE: LoRA của task giống nhau nằm gần nhau, MBPP cạnh HumanEval (Hình 5).
+**Slide 2.16 — Câu hỏi 2: zero-shot (Bảng 2) (3').** Nhấn **T2L 67,7 so với multi-task LoRA 66,3** (giá trị của mô tả) và so với Hyperdecoders 67,3 (ngang điểm, lợi thế cách dùng). **Không** dùng 67,7 so với 60,6 làm bằng chứng về mô tả, vì dòng "mô tả trong prompt" không được train gì.
 
-**Slide 2.14 — Chi phí.** Sinh LoRA + trả lời: 0.86 TFLOPs mỗi câu; 3-shot ICL: 4.18 TFLOPs. Nhưng train hypernetwork SFT: khoảng 5 ngày trên H100 mỗi model (một lần).
+**Slide 2.17 — Tổng quát sang model khác (Bảng 7, 8) (1').** Llama-3.1-8B: 73,2 → 76,9 (multi-task LoRA 76,5). Gemma-2-2B (kèm ICL): 60,7 → 66,4 (multi-task 65,2). Trên Gemma, GSM8K gần như không đổi (55,6 → 55,1). Cùng một bộ hyperparameter.
 
-**Slide 2.15 — Hạn chế.** Chưa bằng LoRA train riêng; phụ thuộc chất lượng mô tả (do GPT-4o-mini viết trong paper); chỉ có checkpoint cho vài model; chỉ sinh LoRA.
+**Slide 2.18 — Ablation chọn lọc (2').** Mô tả khớp task 72–73; mô tả của task khác 51,4; chuỗi ngẫu nhiên 63,5 (Bảng 5). Thêm task train và compute thì tốt hơn, trừ S (Bảng 3). t-SNE: MBPP cạnh HumanEval (Hình 5).
 
-**Slide 2.16 — Tóm tắt lời giải 1** (một dòng, dùng lại ở Phần 4): *"Biên dịch một câu mô tả thành trọng số, trong một lần forward, không cần dữ liệu task."*
+**Slide 2.19 — Chi phí và hạn chế (2').** 0,86 TFLOPs mỗi câu so với 3-shot ICL 4,18 (ước tính ad-hoc, chỉ tính token đầu vào). Hạn chế: chưa bằng LoRA riêng; phụ thuộc mô tả; chỉ sinh LoRA (gợi ý điều chỉnh activation); chưa thử chuyển từ model nhỏ sang lớn.
+
+**Slide 2.20 — Tóm tắt** (dùng lại ở Phần 4): *"Biên dịch một câu mô tả thành trọng số, trong một lần forward, không cần dữ liệu task."*
 
 ---
 
@@ -223,7 +222,7 @@ Hơn GRPO tới 19 điểm, ít rollout hơn tới 35 lần; thắng 5/6 benchma
 |---|---|---|
 | Thông tin dùng để thích nghi | Một câu mô tả + kiến thức đã nén từ 479 task | Dữ liệu task + phản hồi chữ |
 | Cần dữ liệu task mới | **Không** | Có (khoảng 100–450 ví dụ trong paper) |
-| Chi phí trước | **Rất lớn**, một lần (khoảng 5 ngày H100) | Không |
+| Chi phí trước | **Lớn**, một lần: train hypernetwork bằng SFT trên 479 task (paper không ghi thời gian) | Không |
 | Chi phí mỗi task mới | **Một lần forward** | Vài trăm tới vài nghìn rollout + reflection LM |
 | Chi phí mỗi câu hỏi lúc dùng | Không thêm token | Prompt dài hơn (nhưng ngắn hơn few-shot) |
 | Đọc hiểu được | Không (LoRA là ma trận số) | **Có** (prompt là chữ) |
@@ -297,10 +296,11 @@ Hơn GRPO tới 19 điểm, ít rollout hơn tới 35 lần; thắng 5/6 benchma
 
 | Slide | Nguồn | Ghi chú |
 |---|---|---|
-| 0.2, 2.8 | T2L Hình 4 | Vẽ lại dạng 4 ô, dịch sang tiếng Việt |
+| 0.2, 2.12 | T2L Hình 4 | Vẽ lại dạng 4 ô, dịch sang tiếng Việt |
 | 1.3, 4.1 | GEPA công thức (1)–(2) | Vẽ thành sơ đồ Φ⟨Π, Θ⟩ với hai mũi tên: T2L chỉnh Θ, GEPA chỉnh Π |
-| 2.4, 2.5 | T2L Hình 2 | |
-| 2.10–2.13 | T2L Bảng 1, 2, 5, 6, 7, 8; Hình 5 | Rút gọn còn dòng chính |
+| 2.1 | T2L Hình 1 (trái) | |
+| 2.5 | T2L Hình 2 | |
+| 2.11, 2.15–2.18 | T2L Bảng 1, 2, 5, 6, 7, 8; Phụ lục D, K; Hình 5 | Rút gọn còn dòng chính |
 | 3.3, 3.14 | GEPA Hình 1 | |
 | 3.6 | GEPA Hình 3 | |
 | 3.8 | GEPA Phụ lục C | Nguyên văn tiếng Anh + dịch |
@@ -309,3 +309,4 @@ Hơn GRPO tới 19 điểm, ít rollout hơn tới 35 lần; thắng 5/6 benchma
 | 3.13, 3.15 | GEPA Bảng 1, 2 | |
 | 3.5 | Nhóm tự làm | Ghi rõ "minh hoạ của nhóm" |
 | 5.1 | BetterTogether Bảng 1 | Chỉ một dòng kết luận |
+| 5.8 | Kết quả thí nghiệm của nhóm | Lấy từ `04-thiet-ke-thi-nghiem-va-app.md` khi có |
