@@ -16,7 +16,8 @@ prompt-peft/
 ├── README.md                  ← file này
 ├── docs/                      ← thiết kế và kế hoạch
 │   ├── 01-chon-paper-va-thiet-ke-app.md
-│   └── 02-ke-hoach-thuyet-trinh-va-phan-cong.md
+│   ├── 02-ke-hoach-thuyet-trinh-va-phan-cong.md
+│   └── 03-noi-dung-thuyet-trinh.md   ← nội dung từng slide: một bài toán, hai lời giải
 ├── papers/                    ← tài liệu về paper: link, tóm tắt, dịch/diễn giải
 │   ├── README.md              ← danh sách tất cả paper + link
 │   ├── 01-text-to-lora/       ← paper 1 (PDF + tóm tắt + dịch chi tiết)
@@ -34,6 +35,7 @@ prompt-peft/
 ## Đọc theo thứ tự nào?
 1. [`docs/01-chon-paper-va-thiet-ke-app.md`](docs/01-chon-paper-va-thiet-ke-app.md): vì sao chọn 2 paper, thiết kế app, hạ tầng demo.
 2. [`docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md`](docs/02-ke-hoach-thuyet-trinh-va-phan-cong.md): kịch bản 180 phút, phân công, lộ trình 6 tuần.
-3. Team Text-to-LoRA: [`papers/01-text-to-lora/`](papers/01-text-to-lora/).
-4. Team GEPA: [`papers/03-dspy/`](papers/03-dspy/) trước, rồi [`papers/02-gepa/`](papers/02-gepa/).
-5. Người làm code: [`app/README.md`](app/README.md).
+3. [`docs/03-noi-dung-thuyet-trinh.md`](docs/03-noi-dung-thuyet-trinh.md): nội dung thuyết trình theo từng slide.
+4. Team Text-to-LoRA: [`papers/01-text-to-lora/`](papers/01-text-to-lora/).
+5. Team GEPA: [`papers/03-dspy/`](papers/03-dspy/) trước, rồi [`papers/02-gepa/`](papers/02-gepa/).
+6. Người làm code: [`app/README.md`](app/README.md).
